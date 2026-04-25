@@ -1,0 +1,14 @@
+import React from 'react';
+
+interface INavigationProps extends React.SVGAttributes<SVGSVGElement> {
+  isActive?: boolean;
+}
+const DashboardMenuIcon: React.FC<INavigationProps> = ({ isActive, fill, ...props }) => {
+  return (
+    <svg width="20" height="19" viewBox="0 0 20 19" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
+      <path d="M11.45 8.59556L13.5 6.54556M8 10.0456C8 10.576 8.21071 11.0847 8.58579 11.4598C8.96086 11.8348 9.46957 12.0456 10 12.0456C10.5304 12.0456 11.0391 11.8348 11.4142 11.4598C11.7893 11.0847 12 10.576 12 10.0456C12 9.51513 11.7893 9.00642 11.4142 8.63135C11.0391 8.25628 10.5304 8.04556 10 8.04556C9.46957 8.04556 8.96086 8.25628 8.58579 8.63135C8.21071 9.00642 8 9.51513 8 10.0456ZM4.4 17.0456C2.93815 15.8836 1.87391 14.2958 1.35478 12.502C0.835644 10.7083 0.887321 8.79745 1.50265 7.03437C2.11797 5.27129 3.26647 3.74327 4.78899 2.66206C6.3115 1.58085 8.13263 1 10 1C11.8674 1 13.6885 1.58085 15.211 2.66206C16.7335 3.74327 17.882 5.27129 18.4974 7.03437C19.1127 8.79745 19.1644 10.7083 18.6452 12.502C18.1261 14.2958 17.0619 15.8836 15.6 17.0456H4.4Z" stroke={isActive ? "white" : fill} stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+    </svg>
+
+  )
+}
+export default DashboardMenuIcon;

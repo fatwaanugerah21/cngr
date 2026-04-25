@@ -1,0 +1,10 @@
+{
+  "name": "cngr",
+  "private": true,
+  "scripts": {
+    "dev:frontend": "pnpm --filter frontend dev",
+    "build:frontend": "pnpm --filter frontend build",
+    "preview:frontend": "pnpm --filter frontend preview"
+  },
+  "packageManager": "pnpm@9.14.2"
+}
