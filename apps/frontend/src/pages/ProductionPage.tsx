@@ -1,8 +1,16 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PageHeader from '../components/layout/PageHeader';
-import { Button, DataTable, type DataTableColumnDef, SearchFilterBar } from '../components/ui';
+import {
+  Button,
+  ConfirmationModalComponent,
+  DataTable,
+  type DataTableColumnDef,
+  SearchFilterBar,
+} from '../components/ui';
 import { COLORS } from '../constants/colors';
+import { useSite } from '../lib/site-context';
+import { listProductionBySite, type ProductionRecord } from '../lib/cngr-api';
 
 type ProductionRow = {
   id: string;
@@ -13,14 +21,6 @@ type ProductionRow = {
   efficiency: string;
   status: string;
 };
-
-const DEFAULT_USER = { name: 'Ghifary Modeong', role: 'admin' } as const;
-
-const DUMMY_ROWS: ProductionRow[] = [
-  { id: 'prod-1', date: '14 April 2026', site: 'Morowali', realization: 6500, target: 13000, efficiency: '50%', status: 'Warn' },
-  { id: 'prod-2', date: '14 April 2026', site: 'Weda Bay', realization: 5000, target: 5000, efficiency: '100%', status: 'Good' },
-  { id: 'prod-3', date: '14 April 2026', site: 'Morowali Utara', realization: 2000, target: 6000, efficiency: '40%', status: 'Danger' },
-];
 
 function efficiencyPercent(value: string): number {
   return Number(value.replace('%', '').trim()) || 0;
@@ -91,37 +91,114 @@ function PlusIcon() {
 
 export default function ProductionPage() {
   const navigate = useNavigate();
+  const { selectedSite } = useSite();
   const [search, setSearch] = useState('');
+  const [rows, setRows] = useState<ProductionRow[]>([]);
+  const [deleteTarget, setDeleteTarget] = useState<ProductionRow | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | undefined>();
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadProduction() {
+      if (!selectedSite?.id) {
+        setRows([]);
+        setIsLoading(false);
+        setError(undefined);
+        return;
+      }
+
+      setIsLoading(true);
+      setError(undefined);
+      try {
+        const production = await listProductionBySite(selectedSite.id);
+        if (cancelled) {
+          return;
+        }
+        setRows(
+          production.map<ProductionRow>((row: ProductionRecord) => ({
+            id: row.id,
+            date: row.date,
+            site: row.site || selectedSite.name,
+            realization: row.realization,
+            target: row.target,
+            efficiency: row.efficiency,
+            status: row.status,
+          }))
+        );
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : 'Gagal memuat data produksi.');
+          setRows([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    loadProduction();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedSite?.id, selectedSite?.name]);
 
   const filteredRows = useMemo(() => {
     const keyword = search.trim().toLowerCase();
-    if (!keyword) return DUMMY_ROWS;
-    return DUMMY_ROWS.filter(
+    const source = rows;
+    if (!keyword) return source;
+    return source.filter(
       (row) =>
         row.site.toLowerCase().includes(keyword) ||
         row.date.toLowerCase().includes(keyword) ||
         row.status.toLowerCase().includes(keyword)
     );
-  }, [search]);
+  }, [rows, search]);
+
+  const onConfirmDelete = () => {
+    if (!deleteTarget) return;
+    setRows((prev) => prev.filter((r) => r.id !== deleteTarget.id));
+    setDeleteTarget(null);
+  };
+
+  const hasSelectedSite = selectedSite != null;
 
   return (
     <div className="flex flex-col">
-      <PageHeader title="Production Operational" user={DEFAULT_USER} />
+      <PageHeader title="Operasional Produksi" />
 
       <div className="flex flex-col p-10">
         <div className="mb-8 flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h1 className="text-lg font-bold" style={{ color: COLORS.textPrimary }}>
-              Production Operational
+              Operasional Produksi
             </h1>
             <p className="mt-1 text-xs" style={{ color: COLORS.textSecondary }}>
-              Pengelolaan Production untuk setiap site, data realisasi dan target yang ingin dicapai dapat diinput disini
+              Pengelolaan Produksi untuk setiap site, data realisasi dan target yang ingin dicapai dapat diinput disini
             </p>
           </div>
-          <Button type="button" size="sm" leftIcon={<PlusIcon />} onClick={() => navigate('/production/add')}>
-            Tambah Production
+          <Button
+            type="button"
+            size="sm"
+            leftIcon={<PlusIcon />}
+            onClick={() => navigate('/production/add')}
+            disabled={!hasSelectedSite || isLoading}
+          >
+            Tambah Produksi
           </Button>
         </div>
+
+        {!hasSelectedSite ? (
+          <div
+            className="mb-8 rounded-lg border bg-white p-6 text-sm shadow-sm"
+            style={{ borderColor: COLORS.border, color: COLORS.textSecondary }}
+          >
+            Silakan pilih site terlebih dahulu dari menu Manajemen Site.
+          </div>
+        ) : null}
 
         <div className="mb-8">
           <SearchFilterBar
@@ -129,19 +206,60 @@ export default function ProductionPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             filterLabel="Filters"
+            disabled={!hasSelectedSite || isLoading}
           />
         </div>
 
-        <DataTable
-          columns={TABLE_COLUMNS}
-          data={filteredRows}
-          getRowId={(row) => row.id}
-          minWidth={900}
-          onRowAction={() => {
-            // Placeholder for edit/delete integration.
-          }}
-        />
+        {error ? (
+          <div
+            className="rounded-lg border bg-white p-6 text-sm shadow-sm"
+            style={{ borderColor: COLORS.border, color: COLORS.textSecondary }}
+          >
+            {error}
+          </div>
+        ) : isLoading ? (
+          <div
+            className="rounded-lg border bg-white p-6 text-sm shadow-sm"
+            style={{ borderColor: COLORS.border, color: COLORS.textSecondary }}
+          >
+            Memuat data produksi...
+          </div>
+        ) : (
+          <DataTable
+            columns={TABLE_COLUMNS}
+            data={filteredRows}
+            getRowId={(row) => row.id}
+            minWidth={900}
+            onRowAction={(action, row) => {
+              if (action === 'delete') {
+                setDeleteTarget(row);
+              }
+              if (action === 'edit') {
+                // Edit flow is not exposed by Swagger yet.
+              }
+            }}
+          />
+        )}
       </div>
+
+      <ConfirmationModalComponent
+        open={deleteTarget != null}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTarget(null);
+        }}
+        title="Hapus Produksi"
+        description={
+          deleteTarget ? (
+            <>
+              Apakah anda yakin untuk menghapus data produksi{' '}
+              <span style={{ color: '#2563EB', textDecoration: 'underline', fontWeight: 600 }}>{deleteTarget.site}</span>
+            </>
+          ) : null
+        }
+        confirmLabel="Hapus Data"
+        cancelLabel="Kembali"
+        onConfirm={onConfirmDelete}
+      />
     </div>
   );
 }

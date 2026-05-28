@@ -1,5 +1,6 @@
 import { forwardRef, type InputHTMLAttributes } from 'react';
 import { COLORS } from '../../constants/colors';
+import { applyFieldInputBlur, applyFieldInputFocus, fieldInputBaseStyle } from '../../lib/field-input-styles';
 
 export type SearchInputVisualVariant = 'default' | 'toolbar';
 
@@ -57,19 +58,15 @@ const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(
             .filter(Boolean)
             .join(' ')}
           style={{
-            borderColor: COLORS.border,
-            color: COLORS.textPrimary,
-            backgroundColor: isToolbar ? COLORS.backgroundGray : COLORS.white,
+            ...fieldInputBaseStyle(COLORS.border),
             ...style,
           }}
           onFocus={(e) => {
-            e.target.style.borderColor = COLORS.primary;
-            e.target.style.boxShadow = `0 0 0 2px color-mix(in srgb, ${COLORS.primary} 22%, transparent)`;
+            applyFieldInputFocus(e.target);
             onFocus?.(e);
           }}
           onBlur={(e) => {
-            e.target.style.borderColor = COLORS.border;
-            e.target.style.boxShadow = 'none';
+            applyFieldInputBlur(e.target, COLORS.border);
             onBlur?.(e);
           }}
           {...props}

@@ -5,19 +5,13 @@ import { Button, Input } from '../components/ui';
 import { COLORS } from '../constants/colors';
 import mainImage from '../assets/main-image.jpg';
 import cngrText from '../assets/cngr-text.png';
-import {
-  AUTH_ACCESS_TOKEN_STORAGE_KEY,
-  getLoginErrorMessage,
-  loginWithEmailPassword,
-} from '../lib/auth';
-
-function persistAccessToken(token: string): void {
-  sessionStorage.setItem(AUTH_ACCESS_TOKEN_STORAGE_KEY, token);
-}
+import { getLoginErrorMessage } from '../lib/auth';
+import { useAuth } from '../lib/auth-context';
 
 export default function LoginPage() {
   const navigate = useNavigate();
-  const [email, setEmail] = useState('');
+  const { login } = useAuth();
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | undefined>();
@@ -27,8 +21,7 @@ export default function LoginPage() {
     setFormError(undefined);
     setIsSubmitting(true);
     try {
-      const { token } = await loginWithEmailPassword({ email: email.trim(), password });
-      persistAccessToken(token);
+      await login({ username: username.trim(), password });
       navigate('/dashboard');
     } catch (err) {
       setFormError(getLoginErrorMessage(err));
@@ -95,7 +88,7 @@ export default function LoginPage() {
             className="mb-6 text-sm leading-relaxed"
             style={{ color: COLORS.textSecondary }}
           >
-            Silakan masukkan email dan kata sandi untuk mengakses akun Anda
+            Silakan masukkan username dan kata sandi untuk mengakses akun Anda
           </p>
 
           <form onSubmit={handleSubmit} className="flex flex-col">
@@ -110,13 +103,12 @@ export default function LoginPage() {
             )}
             <div className="mb-4">
               <Input
-                id="email"
-                label="Email"
-                type="email"
-                autoComplete="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="nama@perusahaan.com"
+                id="username"
+                label="Username"
+                autoComplete="username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="Masukkan username Anda"
                 required
                 disabled={isSubmitting}
               />

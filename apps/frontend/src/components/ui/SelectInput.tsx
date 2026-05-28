@@ -1,5 +1,6 @@
 import { forwardRef, useId, type SelectHTMLAttributes } from 'react';
 import { COLORS } from '../../constants/colors';
+import { bindFieldInputFocusHandlers, fieldInputBaseStyle } from '../../lib/field-input-styles';
 
 export interface SelectInputOption {
   value: string;
@@ -25,6 +26,13 @@ const SelectInput = forwardRef<HTMLSelectElement, SelectInputProps>(
   ({ label, error, options, size = 'md', className = '', id, style, onFocus, onBlur, ...props }, ref) => {
     const generatedId = useId();
     const selectId = id ?? `select-input-${generatedId}`;
+    const blurBorderColor = error ? '#EF4444' : COLORS.border;
+    const focusHandlers = bindFieldInputFocusHandlers<HTMLSelectElement>({
+      blurBorderColor,
+      ring: 'legacy',
+      onFocus,
+      onBlur,
+    });
 
     return (
       <div className="flex flex-col">
@@ -41,22 +49,9 @@ const SelectInput = forwardRef<HTMLSelectElement, SelectInputProps>(
           <select
             ref={ref}
             id={selectId}
-            className={`w-full appearance-none rounded-lg border bg-white pr-9 outline-none transition-colors ${sizeStyles[size]} ${className}`}
-            style={{
-              borderColor: error ? '#EF4444' : COLORS.border,
-              color: COLORS.textPrimary,
-              ...style,
-            }}
-            onFocus={(e) => {
-              e.target.style.borderColor = COLORS.primary;
-              e.target.style.boxShadow = `0 0 0 2px ${COLORS.primary}30`;
-              onFocus?.(e);
-            }}
-            onBlur={(e) => {
-              e.target.style.borderColor = error ? '#EF4444' : COLORS.border;
-              e.target.style.boxShadow = 'none';
-              onBlur?.(e);
-            }}
+            className={`w-full appearance-none rounded-lg border pr-9 outline-none transition-[border-color,box-shadow,background-color] ${sizeStyles[size]} ${className}`}
+            style={{ ...fieldInputBaseStyle(blurBorderColor), ...style }}
+            {...focusHandlers}
             {...props}
           >
             {options.map((option) => (

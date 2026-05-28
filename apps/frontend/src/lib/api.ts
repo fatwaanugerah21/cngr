@@ -1,3 +1,5 @@
+import { getStoredAccessToken } from './auth-session';
+
 const API_V1_PREFIX = '/api/v1';
 
 function getApiOrigin(): string {
@@ -37,6 +39,10 @@ export class ApiHttpError extends Error {
 
 function mergeHeaders(init?: RequestInit): Headers {
   const headers = new Headers(init?.headers);
+  const accessToken = getStoredAccessToken();
+  if (accessToken && !headers.has('Authorization')) {
+    headers.set('Authorization', `Bearer ${accessToken}`);
+  }
   const body = init?.body;
   if (
     body !== undefined &&

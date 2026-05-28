@@ -1,14 +1,15 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { clearSessionAuth } from '../lib/auth';
+import { useAuth } from '../lib/auth-context';
 
 export default function LogoutPage() {
   const navigate = useNavigate();
+  const { logout } = useAuth();
 
   useEffect(() => {
-    clearSessionAuth();
+    logout();
     navigate('/login', { replace: true });
-  }, [navigate]);
+  }, [logout, navigate]);
 
   return (
     <div className="flex min-h-screen items-center justify-center">

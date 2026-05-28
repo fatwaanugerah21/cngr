@@ -1,11 +1,29 @@
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { ACCOUNT_PROFILE } from '../../data/account-profile';
 import { Button } from '../ui';
 import { AccountSubNav, ProfileCompletionBar } from '../account';
 import PageHeader, { type BreadcrumbItem } from './PageHeader';
 import { COLORS } from '../../constants/colors';
+import type { AccountProfileData } from '../../lib/cngr-api';
+import { useAuth } from '../../lib/auth-context';
 
-const HEADER_USER = { name: 'Ghifary Modeong', role: 'Administrator', avatar: ACCOUNT_PROFILE.avatarUrl } as const;
+function computeProfileCompletion(profile: AccountProfileData): number {
+  const fields = [
+    profile.avatarUrl,
+    profile.firstName,
+    profile.lastName,
+    profile.email,
+    profile.employeeId,
+    profile.gender,
+    profile.jobTitle,
+    profile.city,
+    profile.province,
+    profile.postalCode,
+    profile.birthDate,
+    profile.phone,
+  ];
+  const filled = fields.filter((field) => field.trim() !== '').length;
+  return Math.round((filled / fields.length) * 100);
+}
 
 function PlusIcon() {
   return (
@@ -35,13 +53,34 @@ function buildBreadcrumb(pathname: string): BreadcrumbItem[] {
   ];
 }
 
+function LoadingState() {
+  return (
+    <div className="flex min-h-screen items-center justify-center px-6">
+      <p className="text-sm" style={{ color: COLORS.textSecondary }}>
+        Memuat data akun...
+      </p>
+    </div>
+  );
+}
+
 export default function AccountAreaLayout() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
+  const { user: profile, isInitializing } = useAuth();
 
   const isUserHome = pathname === '/account/user';
   const isUserEdit = pathname === '/account/user/edit';
   const isSecurity = pathname === '/account/security';
+
+  const profileCompletion = profile ? computeProfileCompletion(profile) : 0;
+
+  if (isInitializing) {
+    return <LoadingState />;
+  }
+
+  if (!profile) {
+    return <LoadingState />;
+  }
 
   const trailing =
     isUserHome ? (
@@ -70,12 +109,12 @@ export default function AccountAreaLayout() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <PageHeader breadcrumb={buildBreadcrumb(pathname)} user={HEADER_USER} />
+      <PageHeader breadcrumb={buildBreadcrumb(pathname)} />
       <div className="flex-1 p-6 sm:p-8" style={{ backgroundColor: COLORS.backgroundGray }}>
         <div className="mx-auto max-w-6xl">
           <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center">
             <div className="min-w-0 flex-1">
-              <ProfileCompletionBar percent={ACCOUNT_PROFILE.profileCompletePercent} />
+              <ProfileCompletionBar percent={profileCompletion} />
             </div>
             {trailing ? <div className="flex justify-end lg:justify-start">{trailing}</div> : null}
           </div>

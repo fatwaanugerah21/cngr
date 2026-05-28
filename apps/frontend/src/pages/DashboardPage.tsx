@@ -123,7 +123,6 @@ export default function DashboardPage() {
     <div className="flex flex-col">
       <PageHeader
         title="Ringkasan dasbor"
-        user={{ name: 'Ghifary Modeong', role: 'Administrator' }}
       />
 
       <div className="flex flex-col gap-8 p-10">

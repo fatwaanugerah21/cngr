@@ -4,6 +4,7 @@ import type { FormSelectOption } from '../forms/FormSelectField';
 import { Button } from '../ui';
 import Modal from '../ui/Modal';
 import { COLORS } from '../../constants/colors';
+import type { UserManagementRecord } from 'src/lib/cngr-api';
 
 export type CreateSitePayload = {
   siteName: string;
@@ -16,8 +17,8 @@ export type CreateSitePayload = {
 interface CreateSiteModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (payload: CreateSitePayload) => void;
-  picOptions: FormSelectOption[];
+  onSubmit: (payload: CreateSitePayload) => void | Promise<void>;
+  supervisors: UserManagementRecord[]
 }
 
 function ClipboardGlyph() {
@@ -42,14 +43,23 @@ const emptyForm = {
   location: '',
 };
 
-export default function CreateSiteModal({ open, onOpenChange, onSubmit, picOptions }: CreateSiteModalProps) {
+export default function CreateSiteModal({ open, onOpenChange, onSubmit, supervisors }: CreateSiteModalProps) {
   const [form, setForm] = useState(emptyForm);
   const [siteNameError, setSiteNameError] = useState<string | undefined>();
   const [picError, setPicError] = useState<string | undefined>();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const picSelectOptions = useMemo<FormSelectOption[]>(
-    () => [{ value: '', label: 'Pilih PIC' }, ...picOptions],
-    [picOptions]
+    () => [
+      { value: '', label: 'Pilih PIC' },
+      ...supervisors
+        .filter((user) => user.role.toLowerCase() === 'supervisor')
+        .map((user) => ({
+          value: user.id,
+          label: user.fullName,
+        })),
+    ],
+    [supervisors]
   );
 
   useEffect(() => {
@@ -57,10 +67,11 @@ export default function CreateSiteModal({ open, onOpenChange, onSubmit, picOptio
       setForm(emptyForm);
       setSiteNameError(undefined);
       setPicError(undefined);
+      setIsSubmitting(false);
     }
   }, [open]);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const name = form.siteName.trim();
     if (!name) {
       setSiteNameError('Bidang ini wajib diisi.');
@@ -72,14 +83,19 @@ export default function CreateSiteModal({ open, onOpenChange, onSubmit, picOptio
     }
     setSiteNameError(undefined);
     setPicError(undefined);
-    onSubmit({
-      siteName: name,
-      picValue: form.picValue,
-      city: form.city.trim(),
-      province: form.province.trim(),
-      location: form.location.trim(),
-    });
-    onOpenChange(false);
+    setIsSubmitting(true);
+    try {
+      await onSubmit({
+        siteName: name,
+        picValue: form.picValue,
+        city: form.city.trim(),
+        province: form.province.trim(),
+        location: form.location.trim(),
+      });
+      onOpenChange(false);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -147,8 +163,8 @@ export default function CreateSiteModal({ open, onOpenChange, onSubmit, picOptio
         >
           Status site yang dibuat akan memiliki status active, anda dapat mengubah status di halaman depan master data
         </div>
-        <Button type="button" size="md" fullWidth onClick={handleSubmit}>
-          Simpan Data
+        <Button type="button" size="md" fullWidth onClick={handleSubmit} disabled={isSubmitting}>
+          {isSubmitting ? 'Menyimpan…' : 'Simpan Data'}
         </Button>
       </div>
     </Modal>

@@ -20,6 +20,8 @@ export const COLORS = {
   borderLight: '#E5E7EB',
   background: '#FFFFFF',
   backgroundGray: '#F9FAFB',
+  /** Unfocused text, select, and picker trigger fields */
+  inputBackground: '#F8F8F8',
 
   // Sidebar
   sidebarBg: '#0a1628',

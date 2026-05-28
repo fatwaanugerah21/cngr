@@ -28,10 +28,12 @@ export interface ResourceFormShellProps {
   fileMaxSizeMb?: number;
   initialTitle?: string;
   initialDescription?: string;
-  onSubmit?: (payload: { title: string; description: string; file: File | null }) => void;
+  /** When true, a file must be selected before submit (typical for create). */
+  requireFile?: boolean;
+  submitError?: string;
+  isSubmitting?: boolean;
+  onSubmit?: (payload: { title: string; description: string; file: File | null }) => void | Promise<void>;
 }
-
-const DEFAULT_USER = { name: 'Ghifary Modeong', role: 'Administrator' } as const;
 
 export default function ResourceFormShell({
   copy,
@@ -39,6 +41,9 @@ export default function ResourceFormShell({
   fileMaxSizeMb = 10,
   initialTitle = '',
   initialDescription = '',
+  requireFile = false,
+  submitError,
+  isSubmitting = false,
   onSubmit,
 }: ResourceFormShellProps) {
   const navigate = useNavigate();
@@ -46,6 +51,7 @@ export default function ResourceFormShell({
   const [description, setDescription] = useState(initialDescription);
   const [file, setFile] = useState<File | null>(null);
   const [titleError, setTitleError] = useState<string | undefined>();
+  const [fileError, setFileError] = useState<string | undefined>();
 
   const handleSubmit = () => {
     const trimmed = title.trim();
@@ -53,10 +59,15 @@ export default function ResourceFormShell({
       setTitleError('Bidang ini wajib diisi.');
       return;
     }
+    if (requireFile && !file) {
+      setFileError('Berkas wajib diunggah.');
+      return;
+    }
     setTitleError(undefined);
+    setFileError(undefined);
     const payload = { title: trimmed, description: description.trim(), file };
     if (onSubmit) {
-      onSubmit(payload);
+      void onSubmit(payload);
     } else {
       navigate(listPath);
     }
@@ -69,7 +80,6 @@ export default function ResourceFormShell({
           { label: copy.breadcrumbManagement, to: listPath },
           { label: copy.breadcrumbCurrent },
         ]}
-        user={DEFAULT_USER}
       />
 
       <div className="flex flex-col p-10" style={{ backgroundColor: COLORS.backgroundGray }}>
@@ -102,15 +112,33 @@ export default function ResourceFormShell({
             title={copy.sectionFileTitle}
             description={copy.sectionFileDescription}
           >
-            <FileUploadField maxSizeMb={fileMaxSizeMb} value={file} onChange={setFile} />
+            <FileUploadField
+              maxSizeMb={fileMaxSizeMb}
+              value={file}
+              onChange={(nextFile) => {
+                setFile(nextFile);
+                if (fileError) setFileError(undefined);
+              }}
+            />
+            {fileError ? (
+              <p className="text-sm" style={{ color: COLORS.primary }}>
+                {fileError}
+              </p>
+            ) : null}
           </FormSection>
 
+          {submitError ? (
+            <p className="text-sm" style={{ color: COLORS.primary }}>
+              {submitError}
+            </p>
+          ) : null}
+
           <div className="flex flex-wrap justify-end gap-3 pt-2">
-            <Button type="button" variant="outline" size="md" onClick={() => navigate(listPath)}>
+            <Button type="button" variant="outline" size="md" onClick={() => navigate(listPath)} disabled={isSubmitting}>
               Kembali
             </Button>
-            <Button type="button" variant="primary" size="md" onClick={handleSubmit}>
-              Simpan Data
+            <Button type="button" variant="primary" size="md" onClick={handleSubmit} disabled={isSubmitting}>
+              {isSubmitting ? 'Menyimpan…' : 'Simpan Data'}
             </Button>
           </div>
         </div>

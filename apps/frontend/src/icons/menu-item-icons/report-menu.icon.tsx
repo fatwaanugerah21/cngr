@@ -5,15 +5,10 @@ interface INavigationProps extends React.SVGAttributes<SVGSVGElement> {
 }
 
 const ReportMenuIcon: React.FC<INavigationProps> = ({ isActive, fill, ...props }) => {
+  const stroke = isActive ? 'white' : fill;
   return (
-    <svg width="16" height="20" viewBox="0 0 16 20" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
-      <path
-        d="M10 1V5C10 5.26522 10.1054 5.51957 10.2929 5.70711C10.4804 5.89464 10.7348 6 11 6H15M10 1H3C2.46957 1 1.96086 1.21071 1.58579 1.58579C1.21071 1.96086 1 2.46957 1 3V17C1 17.5304 1.21071 18.0391 1.58579 18.4142C1.96086 18.7893 2.46957 19 3 19H13C13.5304 19 14.0391 18.7893 14.4142 18.4142C14.7893 18.0391 15 17.5304 15 17V6M10 1L15 6M5 15V10M8 15V14M11 15V12"
-        stroke={isActive ? 'white' : fill}
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
+    <svg width="13" height="16" viewBox="0 0 13 16" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
+      <path d="M8 0.5V3.83333C8 4.05435 8.0878 4.26631 8.24408 4.42259C8.40036 4.57887 8.61232 4.66667 8.83333 4.66667H12.1667M12.1667 4.66667L8 0.5H2.16667C1.72464 0.5 1.30072 0.675595 0.988155 0.988155C0.675595 1.30072 0.5 1.72464 0.5 2.16667V13.8333C0.5 14.2754 0.675595 14.6993 0.988155 15.0118C1.30072 15.3244 1.72464 15.5 2.16667 15.5H10.5C10.942 15.5 11.366 15.3244 11.6785 15.0118C11.9911 14.6993 12.1667 14.2754 12.1667 13.8333V4.66667ZM3.83333 12.1667V8M6.33333 12.1667V11.3333M8.83333 12.1667V9.66667" stroke={stroke} strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 };

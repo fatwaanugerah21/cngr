@@ -1,35 +1,115 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AccountAvatarEditor, AccountSectionCard } from '../../components/account';
 import { FormSelectField, FormTextField } from '../../components/forms';
-import { ACCOUNT_PROFILE } from '../../data/account-profile';
+import { type AccountProfileData, updateUserProfile, uploadUserProfileImage } from '../../lib/cngr-api';
+import { useAuth } from '../../lib/auth-context';
 
 const GENDER_OPTIONS = [
   { value: 'Laki-laki', label: 'Laki-laki' },
   { value: 'Perempuan', label: 'Perempuan' },
 ];
 
+function toDateInputValue(value: string): string {
+  if (!value) {
+    return '';
+  }
+
+  return value.slice(0, 10);
+}
+
 export default function UserAccountEditPage() {
   const navigate = useNavigate();
-  const initial = ACCOUNT_PROFILE;
+  const { user: currentUser, isInitializing, refreshCurrentUser } = useAuth();
 
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
-  const [firstName, setFirstName] = useState<string>(initial.firstName);
-  const [lastName, setLastName] = useState<string>(initial.lastName);
-  const [email, setEmail] = useState<string>(initial.email);
-  const [employeeId, setEmployeeId] = useState<string>(initial.employeeId);
-  const [gender, setGender] = useState<string>(initial.gender);
-  const [jobTitle, setJobTitle] = useState<string>(initial.jobTitle);
-  const [city, setCity] = useState<string>(initial.city);
-  const [province, setProvince] = useState<string>(initial.province);
-  const [postalCode, setPostalCode] = useState<string>(initial.postalCode);
-  const [birthDate, setBirthDate] = useState<string>(initial.birthDate);
-  const [phone, setPhone] = useState<string>(initial.phone);
+  const [profile, setProfile] = useState<AccountProfileData | undefined>();
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [email, setEmail] = useState('');
+  const [employeeId, setEmployeeId] = useState('');
+  const [gender, setGender] = useState('');
+  const [jobTitle, setJobTitle] = useState('');
+  const [city, setCity] = useState('');
+  const [province, setProvince] = useState('');
+  const [postalCode, setPostalCode] = useState('');
+  const [birthDate, setBirthDate] = useState('');
+  const [phone, setPhone] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formError, setFormError] = useState<string | undefined>();
 
-  const handleSubmit = (e: FormEvent) => {
+  useEffect(() => {
+    setIsLoading(isInitializing);
+    setProfile(currentUser);
+    if (currentUser) {
+      setFirstName(currentUser.firstName);
+      setLastName(currentUser.lastName);
+      setEmail(currentUser.email);
+      setEmployeeId(currentUser.employeeId);
+      setGender(currentUser.gender);
+      setJobTitle(currentUser.jobTitle);
+      setCity(currentUser.city);
+      setProvince(currentUser.province);
+      setPostalCode(currentUser.postalCode);
+      setBirthDate(toDateInputValue(currentUser.birthDate));
+      setPhone(currentUser.phone);
+    }
+  }, [currentUser, isInitializing]);
+
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    navigate('/account/user');
+    if (!profile?.id) {
+      setFormError('Data akun tidak tersedia.');
+      return;
+    }
+
+    setFormError(undefined);
+    setIsSubmitting(true);
+    try {
+      if (avatarFile) {
+        await uploadUserProfileImage(profile.id, avatarFile);
+      }
+
+      const resp = await updateUserProfile(profile.id, {
+        firstname: firstName.trim(),
+        lastname: lastName.trim(),
+        email: email.trim(),
+        nik: employeeId.trim(),
+        gender,
+        position: jobTitle.trim(),
+        city: city.trim(),
+        province: province.trim(),
+        postal_code: postalCode.trim(),
+        birth_date: birthDate ? new Date(birthDate).toISOString() : undefined,
+      });
+
+      console.log("Resp: ", resp);
+      
+      await refreshCurrentUser();
+      navigate('/account/user');
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : 'Gagal menyimpan perubahan akun.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
+
+  if (isLoading) {
+    return (
+      <div className="rounded-2xl border bg-white p-6 shadow-sm" style={{ borderColor: '#E5E7EB' }}>
+        <p className="text-sm text-gray-500">Memuat data akun...</p>
+      </div>
+    );
+  }
+
+  if (!profile) {
+    return (
+      <div className="rounded-2xl border bg-white p-6 shadow-sm" style={{ borderColor: '#E5E7EB' }}>
+        <p className="text-sm text-gray-500">{formError ?? 'Data akun tidak tersedia.'}</p>
+      </div>
+    );
+  }
 
   return (
     <form id="account-edit-form" className="space-y-6" onSubmit={handleSubmit}>
@@ -39,7 +119,7 @@ export default function UserAccountEditPage() {
         description="Perbarui foto profil dan data diri Anda."
       >
         <AccountAvatarEditor
-          defaultImageUrl={initial.avatarUrl}
+          defaultImageUrl={profile.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(firstName || 'U')}`}
           file={avatarFile}
           onFileChange={setAvatarFile}
         />
@@ -81,6 +161,8 @@ export default function UserAccountEditPage() {
           <FormTextField label="No. telepon" value={phone} onChange={(ev) => setPhone(ev.target.value)} />
         </div>
       </AccountSectionCard>
+      {formError ? <p className="text-sm text-red-600">{formError}</p> : null}
+      {isSubmitting ? <p className="text-sm text-gray-500">Menyimpan perubahan...</p> : null}
     </form>
   );
 }

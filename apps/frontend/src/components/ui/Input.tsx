@@ -1,5 +1,6 @@
 import { forwardRef, useId, type InputHTMLAttributes } from 'react';
 import { COLORS } from '../../constants/colors';
+import { bindFieldInputFocusHandlers, fieldInputBaseStyle } from '../../lib/field-input-styles';
 
 export interface InputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'className' | 'size'> {
   label?: string;
@@ -19,6 +20,13 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
   ({ label, error, size = 'md', className = '', id, style, onFocus, onBlur, ...props }, ref) => {
     const generatedId = useId();
     const inputId = id ?? `input-${generatedId}`;
+    const blurBorderColor = error ? '#EF4444' : COLORS.border;
+    const focusHandlers = bindFieldInputFocusHandlers<HTMLInputElement>({
+      blurBorderColor,
+      ring: 'legacy',
+      onFocus,
+      onBlur,
+    });
 
     return (
       <div className="flex flex-col">
@@ -34,22 +42,9 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
         <input
           ref={ref}
           id={inputId}
-          className={`w-full rounded-lg border outline-none transition-colors ${sizeStyles[size]} ${className}`}
-          style={{
-            borderColor: error ? '#EF4444' : COLORS.border,
-            color: COLORS.textPrimary,
-            ...style,
-          }}
-          onFocus={(e) => {
-            e.target.style.borderColor = COLORS.primary;
-            e.target.style.boxShadow = `0 0 0 2px ${COLORS.primary}30`;
-            onFocus?.(e);
-          }}
-          onBlur={(e) => {
-            e.target.style.borderColor = error ? '#EF4444' : COLORS.border;
-            e.target.style.boxShadow = 'none';
-            onBlur?.(e);
-          }}
+          className={`w-full rounded-lg border outline-none transition-[border-color,box-shadow,background-color] ${sizeStyles[size]} ${className}`}
+          style={{ ...fieldInputBaseStyle(blurBorderColor), ...style }}
+          {...focusHandlers}
           {...props}
         />
         {error && (

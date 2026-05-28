@@ -1,11 +1,10 @@
-import type { ComponentType } from 'react';
-import { NavLink } from 'react-router-dom';
+import { useEffect, useState, type ComponentType } from 'react';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { COLORS } from '../../constants/colors';
 import DashboardMenuIcon from '../../icons/menu-item-icons/dashboard-menu.icon';
 import SiteManagementMenuIcon from '../../icons/menu-item-icons/site-management-menu.icon';
 import UserManagementMenuIcon from '../../icons/menu-item-icons/user-management-menu.icon';
 import ProductionMenuIcon from '../../icons/menu-item-icons/production-menu.icon';
-import IssueMenuIcon from '../../icons/menu-item-icons/issue-menu.icon';
 import ReportMenuIcon from '../../icons/menu-item-icons/report-menu.icon';
 import DocMenuIcon from '../../icons/menu-item-icons/doc-menu.icon';
 import RuleMenuIcon from '../../icons/menu-item-icons/rule-menu.icon';
@@ -13,6 +12,15 @@ import AccountMenuIcon from '../../icons/menu-item-icons/account-menu.icon';
 import LogoutMenuIcon from '../../icons/menu-item-icons/logout-menu.icon';
 import mainImage from '../../assets/main-image.jpg';
 import cngrText from '../../assets/cngr-text.png';
+import ReclamationMenuIcon from '../../icons/menu-item-icons/reclamation-menu.icon';
+import LandOpeningMenuIcon from '../../icons/menu-item-icons/land-opening-menu.icon';
+import {
+  EUserRole,
+  getStoredSelectedSite,
+  getStoredUserRole,
+  type SelectedSite,
+} from '../../lib/navigation-session';
+import { useSite } from '../../lib/site-context';
 
 type NavIcon = ComponentType<{ isActive?: boolean; fill?: string }>;
 
@@ -27,7 +35,7 @@ interface NavGroupDef {
   items: NavItemDef[];
 }
 
-const navGroups: NavGroupDef[] = [
+const adminMainNavGroups: NavGroupDef[] = [
   {
     title: 'Utama',
     items: [{ path: '/dashboard', label: 'Dasbor', icon: DashboardMenuIcon }],
@@ -35,23 +43,31 @@ const navGroups: NavGroupDef[] = [
   {
     title: 'Data Master',
     items: [
-      { path: '/user-management', label: 'Manajemen Pengguna', icon: UserManagementMenuIcon },
       { path: '/site-management', label: 'Manajemen Site', icon: SiteManagementMenuIcon },
+      { path: '/user-management', label: 'Manajemen Pengguna', icon: UserManagementMenuIcon },
     ],
+  },
+];
+
+const siteNavGroups: NavGroupDef[] = [
+  {
+    title: 'Utama',
+    items: [{ path: '/site-dashboard', label: 'Dashboard', icon: DashboardMenuIcon }],
   },
   {
     title: 'Operasional',
     items: [
       { path: '/production', label: 'Produksi', icon: ProductionMenuIcon },
-      { path: '/issue', label: 'Isu', icon: IssueMenuIcon },
+      { path: '/land-opening', label: 'Bukaan Lahan', icon: LandOpeningMenuIcon },
+      { path: '/reclamation', label: 'Reklamasi', icon: ReclamationMenuIcon },
     ],
   },
   {
     title: 'Manajemen Berkas',
     items: [
-      { path: '/laporan', label: 'Laporan', icon: ReportMenuIcon },
-      { path: '/dokumen', label: 'Dokumen', icon: DocMenuIcon },
-      { path: '/peraturan', label: 'Peraturan', icon: RuleMenuIcon },
+      { path: '/report', label: 'Laporan', icon: ReportMenuIcon },
+      { path: '/document', label: 'Dokumen', icon: DocMenuIcon },
+      { path: '/rules', label: 'Peraturan', icon: RuleMenuIcon },
     ],
   },
   {
@@ -61,6 +77,48 @@ const navGroups: NavGroupDef[] = [
 ];
 
 const logoutItem: NavItemDef = { path: '/logout', label: 'Keluar', icon: LogoutMenuIcon };
+const backToMainMenuItem: NavItemDef = {
+  path: '/site-management',
+  label: 'Kembali Ke Menu Awal',
+  icon: SiteManagementMenuIcon,
+};
+const missingSiteRedirectPath = '/dashboard';
+
+function isPathInNavGroups(pathname: string, navGroups: NavGroupDef[]): boolean {
+  return navGroups.some((group) =>
+    group.items.some((item) => pathname === item.path || pathname.startsWith(`${item.path}/`))
+  );
+}
+
+function getSidebarNavGroups(role: EUserRole, selectedSite?: SelectedSite, isInAdminMainNavRoute?: boolean): NavGroupDef[] {
+  if ((role === EUserRole.ADMIN || role === EUserRole.DIRECTOR) && selectedSite == null && isInAdminMainNavRoute) {
+    return adminMainNavGroups;
+  }
+
+  return siteNavGroups;
+}
+
+function useNavigationSession() {
+  const [role, setRole] = useState<EUserRole>(() => getStoredUserRole());
+  const [selectedSite, setSelectedSite] = useState<SelectedSite | undefined>(() => getStoredSelectedSite());
+
+  useEffect(() => {
+    const syncSession = () => {
+      setRole(getStoredUserRole());
+      setSelectedSite(getStoredSelectedSite());
+    };
+
+    window.addEventListener('storage', syncSession);
+    window.addEventListener('cngr-navigation-session-change', syncSession);
+
+    return () => {
+      window.removeEventListener('storage', syncSession);
+      window.removeEventListener('cngr-navigation-session-change', syncSession);
+    };
+  }, []);
+
+  return { role, selectedSite };
+}
 
 interface NavItemProps {
   path: string;
@@ -73,7 +131,8 @@ function NavItem({ path, label, icon: Icon }: NavItemProps) {
     <NavLink
       to={path}
       className={({ isActive }) =>
-        `flex w-full items-center gap-4 rounded-lg px-8 py-2.5 text-sm transition-colors ${isActive ? '' : 'hover:text-[#CBD5E1]'}`
+        `flex w-full items-center gap-4 rounded-lg px-4 py-2.5 text-sm transition-colors hover:bg-white/10 ${isActive ? '!bg-[#EE252B]' : ''
+        }`
       }
       style={({ isActive }) => ({
         color: isActive ? COLORS.sidebarTextActive : COLORS.sidebarTextInactive,
@@ -84,10 +143,10 @@ function NavItem({ path, label, icon: Icon }: NavItemProps) {
           <span className="flex h-5 w-5 shrink-0 items-center justify-center [&>svg]:h-5 [&>svg]:w-5">
             <Icon
               isActive={isActive}
-              fill={isActive ? COLORS.sidebarTextActive : COLORS.sidebarTextInactive}
+              fill={COLORS.white}
             />
           </span>
-          <span>{label}</span>
+          <span className={`!text-white`}> {label}</span>
         </>
       )}
     </NavLink>
@@ -98,7 +157,7 @@ function NavGroup({ title, items }: NavGroupDef) {
   return (
     <div className="mt-8 first:mt-0">
       <span
-        className="mb-3 block px-4 text-xs font-semibold uppercase tracking-wider"
+        className="mb-3 block text-xs font-semibold uppercase tracking-wider"
         style={{ color: COLORS.sidebarText }}
       >
         {title}
@@ -113,9 +172,30 @@ function NavGroup({ title, items }: NavGroupDef) {
 }
 
 export default function Sidebar() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { role, selectedSite } = useNavigationSession();
+  const isInAdminMainNavRoute = isPathInNavGroups(location.pathname, adminMainNavGroups);
+  const isInSiteNavRoute = isPathInNavGroups(location.pathname, siteNavGroups);
+
+  const navGroups = getSidebarNavGroups(role, selectedSite, isInAdminMainNavRoute);
+
+  const { clearSelectedSite } = useSite();
+
+  useEffect(() => {
+    if (selectedSite == null && isInSiteNavRoute && role === EUserRole.ADMIN) {
+      navigate(missingSiteRedirectPath, { replace: true });
+    }
+  }, [isInSiteNavRoute, navigate, selectedSite]);
+
+  const handleBackToMainMenu = () => {
+    clearSelectedSite();
+    navigate('/site-management');
+  };
+
   return (
     <aside className="fixed top-0 left-0 z-30 flex h-screen max-h-screen w-64 flex-col">
-      <div className="relative flex h-full flex-1 overflow-hidden">
+      <div className="relative px-4 flex h-full flex-1 overflow-hidden">
         <img
           src={mainImage}
           alt=""
@@ -146,6 +226,21 @@ export default function Sidebar() {
               {navGroups.map((group) => (
                 <NavGroup key={group.title} {...group} />
               ))}
+              {role === EUserRole.ADMIN && selectedSite != null && !isInAdminMainNavRoute ? (
+                <div className="mt-8">
+                  <button
+                    type="button"
+                    className="flex w-full items-center gap-4 rounded-lg px-4 py-2.5 text-left text-sm transition-colors hover:bg-white/10"
+                    style={{ color: COLORS.sidebarTextInactive }}
+                    onClick={handleBackToMainMenu}
+                  >
+                    <span className="flex h-5 w-5 shrink-0 items-center justify-center [&>svg]:h-5 [&>svg]:w-5">
+                      <backToMainMenuItem.icon fill={COLORS.white} />
+                    </span>
+                    <span className="!text-white">{backToMainMenuItem.label}</span>
+                  </button>
+                </div>
+              ) : null}
               <div className="mt-auto shrink-0 pt-8">
                 <NavItem {...logoutItem} />
               </div>

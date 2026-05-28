@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { COLORS } from '../../constants/colors';
+import { useAuth } from '../../lib/auth-context';
 
 export interface BreadcrumbItem {
   label: string;
@@ -12,14 +13,16 @@ interface PageHeaderProps {
   title?: string;
   /** Breadcrumb trail (create/edit pages). */
   breadcrumb?: BreadcrumbItem[];
-  user?: {
-    name: string;
-    role: string;
-    avatar?: string;
-  };
 }
 
-export default function PageHeader({ title, breadcrumb, user }: PageHeaderProps) {
+export default function PageHeader({ title, breadcrumb }: PageHeaderProps) {
+  const { user: authUser } = useAuth();
+  const headerUser = authUser ? {
+    name: [authUser.firstName, authUser.lastName].filter(Boolean).join(' ').trim() || 'Akun pengguna',
+    role: authUser.role ?? '',
+    avatar: authUser.avatarUrl || undefined,
+  } : undefined;
+
   return (
     <header className="flex items-center justify-between border-b bg-white px-8 py-5" style={{ borderColor: COLORS.border }}>
       {breadcrumb?.length ? (
@@ -60,24 +63,24 @@ export default function PageHeader({ title, breadcrumb, user }: PageHeaderProps)
           {title}
         </h1>
       )}
-      {user && (
+      {headerUser && (
         <div className="flex shrink-0 items-center gap-3 pl-4">
           <div
             className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-medium"
             style={{ backgroundColor: COLORS.border, color: COLORS.textSecondary }}
           >
-            {user.avatar ? (
-              <img src={user.avatar} alt="" className="h-full w-full rounded-full object-cover" />
+            {headerUser.avatar ? (
+              <img src={headerUser.avatar} alt="" className="h-full w-full rounded-full object-cover" />
             ) : (
-              user.name.charAt(0)
+              headerUser.name.charAt(0)
             )}
           </div>
           <div>
             <p className="text-xs font-medium" style={{ color: COLORS.textPrimary }}>
-              {user.name}
+              {headerUser.name}
             </p>
             <p className="text-xs" style={{ color: COLORS.textSecondary }}>
-              {user.role}
+              {headerUser.role}
             </p>
           </div>
         </div>

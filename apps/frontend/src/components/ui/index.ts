@@ -23,3 +23,5 @@ export { default as SearchFilterBar } from './SearchFilterBar';
 export type { SearchFilterBarProps } from './SearchFilterBar';
 export { default as SearchInput } from './SearchInput';
 export type { SearchInputProps, SearchInputVisualVariant } from './SearchInput';
+export { default as ConfirmationModalComponent } from './ConfirmationModalComponent';
+export type { ConfirmationModalComponentProps } from './ConfirmationModalComponent';

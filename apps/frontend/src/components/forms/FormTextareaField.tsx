@@ -1,5 +1,6 @@
 import { forwardRef, useId, type TextareaHTMLAttributes } from 'react';
 import { COLORS } from '../../constants/colors';
+import { bindFieldInputFocusHandlers, fieldInputBaseStyle } from '../../lib/field-input-styles';
 
 export interface FormTextareaFieldProps
   extends Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, 'className'> {
@@ -12,6 +13,13 @@ const FormTextareaField = forwardRef<HTMLTextAreaElement, FormTextareaFieldProps
   ({ label, error, className = '', rows = 5, id, onFocus, onBlur, ...props }, ref) => {
     const generatedId = useId();
     const textareaId = id ?? `field-${generatedId}`;
+    const blurBorderColor = error ? COLORS.primary : COLORS.border;
+    const focusHandlers = bindFieldInputFocusHandlers<HTMLTextAreaElement>({
+      blurBorderColor,
+      accentBorderOnFocus: !error,
+      onFocus,
+      onBlur,
+    });
 
     return (
       <div className={`flex flex-col gap-1.5 ${className}`.trim()}>
@@ -22,24 +30,9 @@ const FormTextareaField = forwardRef<HTMLTextAreaElement, FormTextareaFieldProps
           ref={ref}
           id={textareaId}
           rows={rows}
-          className="min-h-[120px] w-full resize-y rounded-lg border px-4 py-2.5 text-sm outline-none transition-[border-color,box-shadow]"
-          style={{
-            borderColor: error ? COLORS.primary : COLORS.border,
-            color: COLORS.textPrimary,
-            backgroundColor: COLORS.white,
-          }}
-          onFocus={(e) => {
-            if (!error) {
-              e.target.style.borderColor = COLORS.primary;
-              e.target.style.boxShadow = `0 0 0 2px color-mix(in srgb, ${COLORS.primary} 18%, transparent)`;
-            }
-            onFocus?.(e);
-          }}
-          onBlur={(e) => {
-            e.target.style.borderColor = error ? COLORS.primary : COLORS.border;
-            e.target.style.boxShadow = 'none';
-            onBlur?.(e);
-          }}
+          className="min-h-[120px] w-full resize-y rounded-lg border px-4 py-2.5 text-sm outline-none transition-[border-color,box-shadow,background-color]"
+          style={fieldInputBaseStyle(blurBorderColor)}
+          {...focusHandlers}
           {...props}
         />
         {error ? (

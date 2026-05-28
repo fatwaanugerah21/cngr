@@ -1,5 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { COLORS } from '../../constants/colors';
+import { applyFieldInputBlur, applyFieldInputFocus } from '../../lib/field-input-styles';
 
 export interface DatePickerInputProps {
   label?: string;
@@ -214,21 +215,23 @@ export default function DatePickerInput({
         ref={triggerRef}
         type="button"
         disabled={disabled}
-        className={`relative w-full rounded-lg border bg-white text-left outline-none transition-colors ${sizeStyles[size]}`}
+        className={`relative w-full rounded-lg border text-left outline-none transition-[border-color,box-shadow,background-color] ${sizeStyles[size]}`}
         style={{
           borderColor: error ? '#EF4444' : COLORS.border,
+          backgroundColor: open ? COLORS.white : COLORS.inputBackground,
           color: value ? COLORS.textPrimary : COLORS.textSecondary,
         }}
         onClick={() => {
           if (!disabled) setOpen((prev) => !prev);
         }}
         onFocus={(e) => {
-          e.currentTarget.style.borderColor = COLORS.primary;
-          e.currentTarget.style.boxShadow = `0 0 0 2px ${COLORS.primary}30`;
+          applyFieldInputFocus(e.currentTarget, { ring: 'legacy' });
         }}
         onBlur={(e) => {
-          e.currentTarget.style.borderColor = error ? '#EF4444' : COLORS.border;
-          e.currentTarget.style.boxShadow = 'none';
+          const next = e.relatedTarget;
+          if (!rootRef.current?.contains(next)) {
+            applyFieldInputBlur(e.currentTarget, error ? '#EF4444' : COLORS.border);
+          }
         }}
       >
         <span>{toDisplayDate(value) || placeholder}</span>

@@ -1,5 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { COLORS } from '../../constants/colors';
+import { applyFieldInputBlur, applyFieldInputFocus, fieldInputBaseStyle } from '../../lib/field-input-styles';
 import type { SelectInputOption } from './SelectInput';
 
 export interface SearchableSelectInputProps {
@@ -45,6 +46,9 @@ export default function SearchableSelectInput({
 
   const selected = useMemo(() => options.find((opt) => opt.value === value), [options, value]);
 
+  const blurBorderColor = error ? '#EF4444' : COLORS.border;
+  const triggerBackground = open ? COLORS.white : COLORS.inputBackground;
+
   const filteredOptions = useMemo(() => {
     const keyword = query.trim().toLowerCase();
     if (!keyword) return options;
@@ -81,13 +85,23 @@ export default function SearchableSelectInput({
         id={triggerId}
         type="button"
         disabled={disabled}
-        className={`relative w-full rounded-lg border bg-white text-left outline-none transition-colors ${triggerSizeStyles[size]}`}
+        className={`relative w-full rounded-lg border text-left outline-none transition-[border-color,box-shadow,background-color] ${triggerSizeStyles[size]}`}
         style={{
-          borderColor: error ? '#EF4444' : COLORS.border,
+          borderColor: blurBorderColor,
+          backgroundColor: triggerBackground,
           color: selected ? COLORS.textPrimary : COLORS.textSecondary,
         }}
         onClick={() => {
           if (!disabled) setOpen((prev) => !prev);
+        }}
+        onFocus={(e) => {
+          applyFieldInputFocus(e.currentTarget, { ring: 'legacy' });
+        }}
+        onBlur={(e) => {
+          const next = e.relatedTarget;
+          if (!rootRef.current?.contains(next)) {
+            applyFieldInputBlur(e.currentTarget, blurBorderColor);
+          }
         }}
       >
         <span className="block truncate pr-6">{selected?.label ?? placeholder}</span>
@@ -115,8 +129,10 @@ export default function SearchableSelectInput({
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder={searchPlaceholder}
-              className="w-full rounded-md border px-3 py-2 text-sm outline-none"
-              style={{ borderColor: COLORS.border, color: COLORS.textPrimary }}
+              className="w-full rounded-md border px-3 py-2 text-sm outline-none transition-[border-color,box-shadow,background-color]"
+              style={fieldInputBaseStyle(COLORS.border)}
+              onFocus={(e) => applyFieldInputFocus(e.target, { ring: 'legacy' })}
+              onBlur={(e) => applyFieldInputBlur(e.target, COLORS.border)}
             />
           </div>
           <div className="max-h-56 overflow-y-auto">

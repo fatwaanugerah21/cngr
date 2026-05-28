@@ -8,10 +8,11 @@ const SiteManagementMenuIcon: React.FC<INavigationProps> = ({ isActive, fill, ..
   const stroke = isActive ? 'white' : fill;
   return (
     <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
-      <rect x="1" y="1" width="6" height="6" rx="1" stroke={stroke} strokeWidth="2" />
-      <rect x="13" y="1" width="6" height="6" rx="1" stroke={stroke} strokeWidth="2" />
-      <rect x="7" y="10" width="6" height="6" rx="1" stroke={stroke} strokeWidth="2" />
-      <path d="M4 7V9.5M4 9.5L7 9.5M7 9.5V10M13 7V9.5M13 9.5L10 9.5M10 9.5V10" stroke={stroke} strokeWidth="2" strokeLinecap="round" />
+      <path d="M2.5 14.1667C2.5 13.7246 2.67559 13.3007 2.98816 12.9882C3.30072 12.6756 3.72464 12.5 4.16667 12.5H5.83333C6.27536 12.5 6.69928 12.6756 7.01184 12.9882C7.3244 13.3007 7.5 13.7246 7.5 14.1667V15.8333C7.5 16.2754 7.3244 16.6993 7.01184 17.0118C6.69928 17.3244 6.27536 17.5 5.83333 17.5H4.16667C3.72464 17.5 3.30072 17.3244 2.98816 17.0118C2.67559 16.6993 2.5 16.2754 2.5 15.8333V14.1667Z" stroke={stroke} strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M12.5 14.1667C12.5 13.7246 12.6756 13.3007 12.9882 12.9882C13.3007 12.6756 13.7246 12.5 14.1667 12.5H15.8333C16.2754 12.5 16.6993 12.6756 17.0118 12.9882C17.3244 13.3007 17.5 13.7246 17.5 14.1667V15.8333C17.5 16.2754 17.3244 16.6993 17.0118 17.0118C16.6993 17.3244 16.2754 17.5 15.8333 17.5H14.1667C13.7246 17.5 13.3007 17.3244 12.9882 17.0118C12.6756 16.6993 12.5 16.2754 12.5 15.8333V14.1667Z" stroke={stroke} strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M7.5 4.16667C7.5 3.72464 7.6756 3.30072 7.98816 2.98816C8.30072 2.67559 8.72464 2.5 9.16667 2.5H10.8333C11.2754 2.5 11.6993 2.67559 12.0118 2.98816C12.3244 3.30072 12.5 3.72464 12.5 4.16667V5.83333C12.5 6.27536 12.3244 6.69928 12.0118 7.01184C11.6993 7.3244 11.2754 7.5 10.8333 7.5H9.16667C8.72464 7.5 8.30072 7.3244 7.98816 7.01184C7.6756 6.69928 7.5 6.27536 7.5 5.83333V4.16667Z" stroke={stroke} strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M5 12.5V11.6667C5 11.2246 5.17559 10.8007 5.48816 10.4882C5.80072 10.1756 6.22464 10 6.66667 10H13.3333C13.7754 10 14.1993 10.1756 14.5118 10.4882C14.8244 10.8007 15 11.2246 15 11.6667V12.5" stroke="white" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M10 7.5V10" stroke="white" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 };

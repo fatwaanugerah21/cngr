@@ -6,6 +6,7 @@ import PencilIcon from '../../icons/pencil.icon';
 import IconButton from './IconButton';
 
 const HEADER_ROW_BACKGROUND = `color-mix(in srgb, ${COLORS.primary} 12%, ${COLORS.white})`;
+const DEFAULT_EMPTY_MESSAGE = 'Tidak ada data untuk ditampilkan.';
 
 export type DataTableHeaderVariant = 'primary' | 'default';
 
@@ -64,6 +65,8 @@ export interface DataTableProps<Row extends Record<string, unknown>> {
   minWidth?: number | string;
   wrapperClassName?: string;
   tableClassName?: string;
+  /** Shown with a fade-in when `data` is empty. */
+  emptyMessage?: ReactNode;
 }
 
 function headerColor(variant: DataTableHeaderVariant | undefined) {
@@ -246,8 +249,10 @@ export default function DataTable<Row extends Record<string, unknown>>({
   minWidth = 720,
   wrapperClassName = '',
   tableClassName = '',
+  emptyMessage = DEFAULT_EMPTY_MESSAGE,
 }: DataTableProps<Row>) {
   const minWidthCss = typeof minWidth === 'number' ? `${minWidth}px` : minWidth;
+  const isEmpty = data.length === 0;
 
   return (
     <div
@@ -289,22 +294,36 @@ export default function DataTable<Row extends Record<string, unknown>>({
             </tr>
           </thead>
           <tbody>
-            {data.map((row, idx) => (
-              <tr
-                key={getRowId(row)}
-                className="transition-colors hover:bg-gray-50"
-                style={{
-                  backgroundColor: COLORS.white,
-                  borderBottom: idx < data.length - 1 ? `1px solid ${COLORS.border}` : undefined,
-                }}
-              >
-                {columns.map((col) => (
-                  <td key={col.id} className="px-6 py-4 align-middle">
-                    {renderCell(col, row, onRowAction)}
-                  </td>
-                ))}
+            {isEmpty ? (
+              <tr>
+                <td colSpan={columns.length} className="px-6 py-14 text-center align-middle">
+                  <div
+                    key="data-table-empty"
+                    className="animate-data-table-empty mx-auto max-w-md text-sm"
+                    style={{ color: COLORS.textSecondary }}
+                  >
+                    {emptyMessage}
+                  </div>
+                </td>
               </tr>
-            ))}
+            ) : (
+              data.map((row, idx) => (
+                <tr
+                  key={getRowId(row)}
+                  className="transition-colors hover:bg-gray-50"
+                  style={{
+                    backgroundColor: COLORS.white,
+                    borderBottom: idx < data.length - 1 ? `1px solid ${COLORS.border}` : undefined,
+                  }}
+                >
+                  {columns.map((col) => (
+                    <td key={col.id} className="px-6 py-4 align-middle">
+                      {renderCell(col, row, onRowAction)}
+                    </td>
+                  ))}
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
