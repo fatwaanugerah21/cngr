@@ -44,12 +44,13 @@ export default function DocumentFormPage() {
     }
 
     let cancelled = false;
+    const documentId = id;
 
     async function loadDocument() {
       setIsLoading(true);
       setLoadError(undefined);
       try {
-        const document = await fetchDocument(id);
+        const document = await fetchDocument(documentId);
         if (cancelled) {
           return;
         }

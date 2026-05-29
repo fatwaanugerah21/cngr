@@ -44,12 +44,13 @@ export default function ReportFormPage() {
     }
 
     let cancelled = false;
+    const reportId = id;
 
     async function loadReport() {
       setIsLoading(true);
       setLoadError(undefined);
       try {
-        const report = await fetchReport(id);
+        const report = await fetchReport(reportId);
         if (cancelled) {
           return;
         }

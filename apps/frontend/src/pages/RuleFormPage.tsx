@@ -44,12 +44,13 @@ export default function RuleFormPage() {
     }
 
     let cancelled = false;
+    const regulationId = id;
 
     async function loadRegulation() {
       setIsLoading(true);
       setLoadError(undefined);
       try {
-        const regulation = await fetchRegulation(id);
+        const regulation = await fetchRegulation(regulationId);
         if (cancelled) {
           return;
         }
