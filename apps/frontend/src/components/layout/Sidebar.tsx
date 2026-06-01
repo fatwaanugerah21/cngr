@@ -2,7 +2,6 @@ import { useEffect, useState, type ComponentType } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { COLORS } from '../../constants/colors';
 import DashboardMenuIcon from '../../icons/menu-item-icons/dashboard-menu.icon';
-import HomeMenuIcon from '../../icons/menu-item-icons/home-menu.icon';
 import SiteManagementMenuIcon from '../../icons/menu-item-icons/site-management-menu.icon';
 import UserManagementMenuIcon from '../../icons/menu-item-icons/user-management-menu.icon';
 import ProductionMenuIcon from '../../icons/menu-item-icons/production-menu.icon';
