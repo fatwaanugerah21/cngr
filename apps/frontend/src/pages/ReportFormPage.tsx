@@ -4,6 +4,7 @@ import { ResourceFormShell, type ResourceFormCopy } from '../components/forms';
 import {
   createReport,
   fetchReport,
+  fetchReportFile,
   type ReportEditState,
   updateReport,
 } from '../lib/cngr-api';
@@ -33,13 +34,23 @@ export default function ReportFormPage() {
 
   const [initialTitle, setInitialTitle] = useState(editState?.title ?? '');
   const [initialDescription, setInitialDescription] = useState(editState?.description ?? '');
-  const [isLoading, setIsLoading] = useState(isEdit && !editState);
+  const [initialFile, setInitialFile] = useState<File | null>(null);
+  const [isLoading, setIsLoading] = useState(isEdit);
   const [loadError, setLoadError] = useState<string | undefined>();
   const [submitError, setSubmitError] = useState<string | undefined>();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    if (!isEdit || !id || editState) {
+    if (editState?.title) {
+      setInitialTitle(editState.title);
+    }
+    if (editState?.description) {
+      setInitialDescription(editState.description);
+    }
+  }, [editState]);
+
+  useEffect(() => {
+    if (!isEdit || !id) {
       return;
     }
 
@@ -60,6 +71,16 @@ export default function ReportFormPage() {
         }
         setInitialTitle(report.title);
         setInitialDescription(report.description ?? '');
+        try {
+          const file = await fetchReportFile(reportId, report.title);
+          if (!cancelled) {
+            setInitialFile(file);
+          }
+        } catch {
+          if (!cancelled) {
+            setInitialFile(null);
+          }
+        }
       } catch (err) {
         if (!cancelled) {
           setLoadError(err instanceof Error ? err.message : 'Gagal memuat data laporan.');
@@ -76,7 +97,7 @@ export default function ReportFormPage() {
     return () => {
       cancelled = true;
     };
-  }, [editState, id, isEdit]);
+  }, [id, isEdit]);
 
   const copy: ResourceFormCopy = {
     ...REPORT_FORM_BASE,
@@ -139,11 +160,12 @@ export default function ReportFormPage() {
 
   return (
     <ResourceFormShell
-      key={isEdit ? `edit-${id}-${initialTitle}` : 'create'}
+      key={isEdit ? `edit-${id}` : 'create'}
       copy={copy}
       listPath="/report"
       initialTitle={initialTitle}
       initialDescription={initialDescription}
+      initialFile={initialFile}
       requireFile={!isEdit}
       submitError={submitError}
       isSubmitting={isSubmitting}

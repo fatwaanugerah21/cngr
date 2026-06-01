@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import PageHeader from '../components/layout/PageHeader';
 import {
   Button,
@@ -9,8 +9,8 @@ import {
   SearchInput,
 } from '../components/ui';
 import { COLORS } from '../constants/colors';
-import { listUsers, type UserManagementRecord } from '../lib/cngr-api';
-import { useUserDirectory } from '../lib/user-directory-context';
+import { deleteUser, fetchAllUsers, type UserManagementRecord } from '../lib/cngr-api';
+import { buildUserManagementListState, readUserManagementListState } from './user-management-list-state';
 
 type UserRow = {
   id: string;
@@ -105,13 +105,23 @@ const USER_COLUMNS: DataTableColumnDef<UserRow>[] = [
 
 export default function UserManagementPage() {
   const navigate = useNavigate();
-  const { users, setUsers } = useUserDirectory();
-  const [search, setSearch] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalResults, setTotalResults] = useState(0);
+  const location = useLocation();
+  const restoredListState = useMemo(() => readUserManagementListState(location.state), [location.state]);
+  const [users, setUsers] = useState<UserManagementRecord[]>([]);
+  const [search, setSearch] = useState(restoredListState.search);
+  const [currentPage, setCurrentPage] = useState(restoredListState.currentPage);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | undefined>();
   const [deleteTarget, setDeleteTarget] = useState<UserRow | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | undefined>();
+  const previousSearchRef = useRef(search);
+
+  useEffect(() => {
+    const next = readUserManagementListState(location.state);
+    setSearch(next.search);
+    setCurrentPage(next.currentPage);
+  }, [location.key, location.state]);
 
   useEffect(() => {
     let cancelled = false;
@@ -120,33 +130,36 @@ export default function UserManagementPage() {
       setIsLoading(true);
       setError(undefined);
 
-      const usersResult = await Promise.allSettled([listUsers(currentPage, RESULTS_PER_PAGE)]);
-
-      if (cancelled) {
-        return;
+      try {
+        const nextUsers = await fetchAllUsers();
+        if (!cancelled) {
+          setUsers(nextUsers);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : 'Gagal memuat data user.');
+          setUsers([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
       }
-
-      const [userListResult] = usersResult;
-      if (userListResult.status === 'fulfilled') {
-        setUsers(userListResult.value.items);
-        setTotalResults(userListResult.value.total ?? userListResult.value.items.length);
-      } else {
-        setError(userListResult.reason instanceof Error ? userListResult.reason.message : 'Gagal memuat data user.');
-        setUsers([]);
-        setTotalResults(0);
-      }
-
-      setIsLoading(false);
     }
 
-    loadUsers();
+    void loadUsers();
 
     return () => {
       cancelled = true;
     };
-  }, [currentPage, setUsers]);
+  }, [location.key]);
 
   useEffect(() => {
+    if (previousSearchRef.current === search) {
+      return;
+    }
+
+    previousSearchRef.current = search;
     setCurrentPage(1);
   }, [search]);
 
@@ -158,6 +171,7 @@ export default function UserManagementPage() {
     );
   }, [search, users]);
 
+  const totalResults = filteredUsers.length;
   const totalPages = Math.max(1, Math.ceil(totalResults / RESULTS_PER_PAGE));
   const pageClamped = Math.min(currentPage, totalPages);
   const pageItems = useMemo(() => paginationRange(pageClamped, totalPages), [pageClamped, totalPages]);
@@ -166,15 +180,27 @@ export default function UserManagementPage() {
     setCurrentPage((page) => Math.min(Math.max(1, page), totalPages));
   }, [totalPages]);
 
-  const pageRows = useMemo<UserRow[]>(
-    () => filteredUsers.map(normalizeUserRow),
-    [filteredUsers]
-  );
+  const pageRows = useMemo<UserRow[]>(() => {
+    const start = (pageClamped - 1) * RESULTS_PER_PAGE;
+    return filteredUsers.slice(start, start + RESULTS_PER_PAGE).map(normalizeUserRow);
+  }, [filteredUsers, pageClamped]);
 
-  const handleDeleteConfirm = () => {
-    if (!deleteTarget) return;
-    setUsers(users.filter((user) => user.id !== deleteTarget.id));
-    setDeleteTarget(null);
+  const onConfirmDelete = async () => {
+    if (!deleteTarget || isDeleting) {
+      return;
+    }
+
+    setIsDeleting(true);
+    setDeleteError(undefined);
+    try {
+      await deleteUser(deleteTarget.id);
+      setUsers((currentUsers) => currentUsers.filter((user) => user.id !== deleteTarget.id));
+      setDeleteTarget(null);
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : 'Gagal menghapus user.');
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   const footer = (
@@ -230,7 +256,7 @@ export default function UserManagementPage() {
     <div className="flex flex-col">
       <PageHeader title="Data User" />
 
-      <div className="flex flex-col p-10" style={{ backgroundColor: COLORS.backgroundGray }}>
+      <div className="flex flex-col p-10">
         <div className="mb-8 flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h1 className="text-lg font-bold" style={{ color: COLORS.textPrimary }}>
@@ -240,7 +266,16 @@ export default function UserManagementPage() {
               Data Manajemen untuk user beserta role nya
             </p>
           </div>
-          <Button type="button" size="sm" leftIcon={<PlusIcon />} onClick={() => navigate('/user-management/add')}>
+          <Button
+            type="button"
+            size="sm"
+            leftIcon={<PlusIcon />}
+            onClick={() =>
+              navigate('/user-management/add', {
+                state: buildUserManagementListState(search, pageClamped),
+              })
+            }
+          >
             Tambah Data
           </Button>
         </div>
@@ -298,9 +333,12 @@ export default function UserManagementPage() {
             footer={footer}
             onRowAction={(action, row) => {
               if (action === 'edit') {
-                navigate(`/user-management/edit/${row.id}`);
+                navigate(`/user-management/edit/${row.id}`, {
+                  state: buildUserManagementListState(search, pageClamped),
+                });
               }
               if (action === 'delete') {
+                setDeleteError(undefined);
                 setDeleteTarget(row);
               }
             }}
@@ -311,7 +349,10 @@ export default function UserManagementPage() {
       <ConfirmationModalComponent
         open={deleteTarget != null}
         onOpenChange={(open) => {
-          if (!open) setDeleteTarget(null);
+          if (!open) {
+            setDeleteTarget(null);
+            setDeleteError(undefined);
+          }
         }}
         title="Hapus User"
         description={
@@ -322,12 +363,19 @@ export default function UserManagementPage() {
                 {deleteTarget.fullName}
               </span>
               ?
+              {deleteError ? (
+                <span className="mt-2 block text-sm" style={{ color: COLORS.primary }}>
+                  {deleteError}
+                </span>
+              ) : null}
             </>
           ) : null
         }
-        confirmLabel="Hapus Data"
+        confirmLabel={isDeleting ? 'Menghapus…' : 'Hapus Data'}
         cancelLabel="Kembali"
-        onConfirm={handleDeleteConfirm}
+        confirmDisabled={isDeleting}
+        closeOnConfirm={false}
+        onConfirm={() => void onConfirmDelete()}
       />
     </div>
   );

@@ -13,7 +13,7 @@ const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(
       <button
         ref={ref}
         type="button"
-        className={`rounded p-1 transition-colors hover:bg-gray-200 ${className}`}
+        className={`cursor-pointer rounded p-1 transition-colors hover:bg-gray-200 disabled:cursor-not-allowed ${className}`}
         {...props}
       >
         {icon}

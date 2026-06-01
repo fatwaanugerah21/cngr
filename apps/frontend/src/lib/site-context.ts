@@ -1,5 +1,5 @@
 import { createContext, useContext } from 'react';
-import type { SelectedSite } from './navigation-session';
+import { resolveSelectedSiteDisplayName, type SelectedSite } from './navigation-session';
 
 export type SiteContextValue = {
   selectedSite: SelectedSite | undefined;
@@ -15,6 +15,11 @@ export function useSite(): SiteContextValue {
     throw new Error('useSite must be used inside SiteProvider');
   }
   return ctx;
+}
+
+export function useSelectedSiteName(fallback = 'Site'): string {
+  const { selectedSite } = useSite();
+  return resolveSelectedSiteDisplayName(selectedSite, undefined, fallback);
 }
 
 export { SiteContext };

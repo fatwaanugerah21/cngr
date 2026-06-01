@@ -22,7 +22,7 @@ export default function LoginPage() {
     setIsSubmitting(true);
     try {
       await login({ username: username.trim(), password });
-      navigate('/dashboard');
+      navigate('/site-management');
     } catch (err) {
       setFormError(getLoginErrorMessage(err));
     } finally {

@@ -1,14 +1,18 @@
 @import "tailwindcss";
 
 @theme {
+  --font-sans: "Inter Tight", ui-sans-serif, system-ui, sans-serif;
   --color-primary: #EE252B;
   --color-primary-hover: #D91F25;
+  --color-submit: #2563EB;
+  --color-submit-hover: #1D4ED8;
   --color-text-primary: #1F2937;
   --color-text-secondary: #6B7280;
   --color-text-muted: #9CA3AF;
   --color-border: #E5E7EB;
-  --color-background: #FFFFFF;
+  --color-background: #F9FAFB;
   --radius-default: 8px;
+  --spacing-page-x: 3.375rem;
 
   --animate-data-table-empty: data-table-empty-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
 
@@ -22,10 +26,32 @@
       transform: translateY(0);
     }
   }
+
+  @keyframes datepicker-panel-in-below {
+    from {
+      opacity: 0;
+      transform: translateY(-6px) scale(0.98);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  @keyframes datepicker-panel-in-above {
+    from {
+      opacity: 0;
+      transform: translateY(6px) scale(0.98);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
 }
 
 :root {
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  font-family: var(--font-sans);
   line-height: 1.5;
   font-size: 14px;
 
@@ -40,6 +66,7 @@
 body {
   margin: 0;
   min-height: 100vh;
+  font-family: var(--font-sans);
   background-color: var(--color-background);
   color: var(--color-text-primary);
 }

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import PageHeader from '../components/layout/PageHeader';
+import SitePageHeader from '../components/layout/SitePageHeader';
 import {
   Button,
   ConfirmationModalComponent,
@@ -10,8 +10,12 @@ import {
 } from '../components/ui';
 import { COLORS } from '../constants/colors';
 import { useSite } from '../lib/site-context';
-import { listProductionBySite, type ProductionRecord } from '../lib/cngr-api';
-
+import {
+  deleteProduction,
+  listProductionBySite,
+  type ProductionEditState,
+  type ProductionRecord,
+} from '../lib/cngr-api';
 type ProductionRow = {
   id: string;
   date: string;
@@ -44,13 +48,19 @@ function statusPillStyle(status: string): { color: string; backgroundColor: stri
 }
 
 const TABLE_COLUMNS: DataTableColumnDef<ProductionRow>[] = [
-  { id: 'date', header: 'Date', kind: 'text', accessorKey: 'date', sortable: true },
+  {
+    id: 'date',
+    header: 'Tanggal',
+    kind: 'date',
+    accessorKey: 'date',
+    sortable: true,
+  },
   { id: 'site', header: 'Site', kind: 'text', accessorKey: 'site', sortable: true },
-  { id: 'realization', header: 'Realisasi', kind: 'text', accessorKey: 'realization', sortable: true },
-  { id: 'target', header: 'Target', kind: 'text', accessorKey: 'target', sortable: true },
+  { id: 'realization', header: 'Realisasi', kind: 'number', accessorKey: 'realization', sortable: true },
+  { id: 'target', header: 'Target', kind: 'number', accessorKey: 'target', sortable: true },
   {
     id: 'efficiency',
-    header: 'Efficiency',
+    header: 'Efisiensi',
     kind: 'text',
     accessorKey: 'efficiency',
     sortable: true,
@@ -95,6 +105,8 @@ export default function ProductionPage() {
   const [search, setSearch] = useState('');
   const [rows, setRows] = useState<ProductionRow[]>([]);
   const [deleteTarget, setDeleteTarget] = useState<ProductionRow | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | undefined>();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | undefined>();
 
@@ -158,17 +170,27 @@ export default function ProductionPage() {
     );
   }, [rows, search]);
 
-  const onConfirmDelete = () => {
-    if (!deleteTarget) return;
-    setRows((prev) => prev.filter((r) => r.id !== deleteTarget.id));
-    setDeleteTarget(null);
+  const onConfirmDelete = async () => {
+    if (!deleteTarget || isDeleting) return;
+
+    setIsDeleting(true);
+    setDeleteError(undefined);
+    try {
+      await deleteProduction(deleteTarget.id);
+      setRows((prev) => prev.filter((r) => r.id !== deleteTarget.id));
+      setDeleteTarget(null);
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : 'Gagal menghapus data produksi.');
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   const hasSelectedSite = selectedSite != null;
 
   return (
     <div className="flex flex-col">
-      <PageHeader title="Operasional Produksi" />
+      <SitePageHeader />
 
       <div className="flex flex-col p-10">
         <div className="mb-8 flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
@@ -232,10 +254,16 @@ export default function ProductionPage() {
             minWidth={900}
             onRowAction={(action, row) => {
               if (action === 'delete') {
+                setDeleteError(undefined);
                 setDeleteTarget(row);
               }
               if (action === 'edit') {
-                // Edit flow is not exposed by Swagger yet.
+                const editState: ProductionEditState = {
+                  date: row.date,
+                  realization: row.realization,
+                  target: row.target,
+                };
+                navigate(`/production/edit/${row.id}`, { state: editState });
               }
             }}
           />
@@ -245,7 +273,10 @@ export default function ProductionPage() {
       <ConfirmationModalComponent
         open={deleteTarget != null}
         onOpenChange={(open) => {
-          if (!open) setDeleteTarget(null);
+          if (!open) {
+            setDeleteTarget(null);
+            setDeleteError(undefined);
+          }
         }}
         title="Hapus Produksi"
         description={
@@ -253,12 +284,19 @@ export default function ProductionPage() {
             <>
               Apakah anda yakin untuk menghapus data produksi{' '}
               <span style={{ color: '#2563EB', textDecoration: 'underline', fontWeight: 600 }}>{deleteTarget.site}</span>
+              {deleteError ? (
+                <span className="mt-2 block text-sm" style={{ color: COLORS.primary }}>
+                  {deleteError}
+                </span>
+              ) : null}
             </>
           ) : null
         }
-        confirmLabel="Hapus Data"
+        confirmLabel={isDeleting ? 'Menghapus…' : 'Hapus Data'}
         cancelLabel="Kembali"
-        onConfirm={onConfirmDelete}
+        confirmDisabled={isDeleting}
+        closeOnConfirm={false}
+        onConfirm={() => void onConfirmDelete()}
       />
     </div>
   );

@@ -81,6 +81,7 @@ export default function UserAccountEditPage() {
         city: city.trim(),
         province: province.trim(),
         postal_code: postalCode.trim(),
+        phone_number: phone.trim(),
         birth_date: birthDate ? new Date(birthDate).toISOString() : undefined,
       });
 

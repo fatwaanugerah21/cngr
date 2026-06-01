@@ -52,12 +52,10 @@ export default function CreateSiteModal({ open, onOpenChange, onSubmit, supervis
   const picSelectOptions = useMemo<FormSelectOption[]>(
     () => [
       { value: '', label: 'Pilih PIC' },
-      ...supervisors
-        .filter((user) => user.role.toLowerCase() === 'supervisor')
-        .map((user) => ({
-          value: user.id,
-          label: user.fullName,
-        })),
+      ...supervisors.map((user) => ({
+        value: user.id,
+        label: user.fullName,
+      })),
     ],
     [supervisors]
   );
@@ -163,7 +161,7 @@ export default function CreateSiteModal({ open, onOpenChange, onSubmit, supervis
         >
           Status site yang dibuat akan memiliki status active, anda dapat mengubah status di halaman depan master data
         </div>
-        <Button type="button" size="md" fullWidth onClick={handleSubmit} disabled={isSubmitting}>
+        <Button type="button" variant="submit" size="md" fullWidth onClick={handleSubmit} disabled={isSubmitting}>
           {isSubmitting ? 'Menyimpan…' : 'Simpan Data'}
         </Button>
       </div>

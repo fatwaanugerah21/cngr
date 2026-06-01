@@ -1,11 +1,68 @@
+import { useEffect, useState } from 'react';
 import { AccountSectionCard, InfoField, InfoFieldGrid } from '../../components/account';
 import { COLORS } from '../../constants/colors';
+import { fetchCurrentAccountProfile, type AccountProfileData } from '../../lib/cngr-api';
 import { useAuth } from '../../lib/auth-context';
 
 export default function UserAccountPage() {
-  const { user: profile, isInitializing } = useAuth();
+  const { user: currentUser, isInitializing, setCurrentUser } = useAuth();
+  const [profile, setProfile] = useState<AccountProfileData | undefined>();
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | undefined>();
 
-  if (isInitializing) {
+  useEffect(() => {
+    if (isInitializing) {
+      return;
+    }
+
+    const userId = currentUser?.id?.trim() ?? '';
+    if (userId === '') {
+      setProfile(undefined);
+      setError('Data akun tidak tersedia.');
+      setIsLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadProfile() {
+      setIsLoading(true);
+      setError(undefined);
+
+      try {
+        const data = await fetchCurrentAccountProfile();
+        if (cancelled) {
+          return;
+        }
+
+        if (!data) {
+          setProfile(undefined);
+          setError('Data akun tidak tersedia.');
+          return;
+        }
+
+        setProfile(data);
+        setCurrentUser(data);
+      } catch (err) {
+        if (!cancelled) {
+          setProfile(undefined);
+          setError(err instanceof Error ? err.message : 'Gagal memuat data akun.');
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    void loadProfile();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentUser?.id, currentUser?.role, isInitializing, setCurrentUser]);
+
+  if (isInitializing || isLoading) {
     return (
       <div className="rounded-2xl border bg-white p-6 shadow-sm" style={{ borderColor: COLORS.border }}>
         <p className="text-sm" style={{ color: COLORS.textSecondary }}>
@@ -19,7 +76,7 @@ export default function UserAccountPage() {
     return (
       <div className="rounded-2xl border bg-white p-6 shadow-sm" style={{ borderColor: COLORS.border }}>
         <p className="text-sm" style={{ color: COLORS.textSecondary }}>
-          Data akun tidak tersedia.
+          {error ?? 'Data akun tidak tersedia.'}
         </p>
       </div>
     );
@@ -70,7 +127,18 @@ export default function UserAccountPage() {
           <InfoField label="Kabupaten / kota" value={profile.city || '-'} />
           <InfoField label="Provinsi" value={profile.province || '-'} />
           <InfoField label="Kode pos" value={profile.postalCode || '-'} />
-          <InfoField label="Tanggal lahir" value={profile.birthDate ? new Date(profile.birthDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : '-'} />
+          <InfoField
+            label="Tanggal lahir"
+            value={
+              profile.birthDate
+                ? new Date(profile.birthDate).toLocaleDateString('id-ID', {
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric',
+                  })
+                : '-'
+            }
+          />
           <InfoField label="No. telepon" value={profile.phone || '-'} />
         </InfoFieldGrid>
       </AccountSectionCard>

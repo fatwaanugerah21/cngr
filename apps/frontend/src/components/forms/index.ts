@@ -10,3 +10,5 @@ export { default as FormTextField } from './FormTextField';
 export type { FormTextFieldProps } from './FormTextField';
 export { default as ResourceFormShell } from './ResourceFormShell';
 export type { ResourceFormCopy, ResourceFormShellProps } from './ResourceFormShell';
+export { default as SiteMetricFormShell } from './SiteMetricFormShell';
+export type { SiteMetricEditState, SiteMetricFormShellProps } from './SiteMetricFormShell';

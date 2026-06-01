@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { InfoField, InfoFieldGrid } from '../components/account';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useForm, type FieldErrors, type UseFormRegister } from 'react-hook-form';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { FormSection, FormSelectField, FormTextField } from '../components/forms';
 import PageHeader from '../components/layout/PageHeader';
 import { Button } from '../components/ui';
@@ -8,10 +9,19 @@ import { COLORS } from '../constants/colors';
 import {
   createUser,
   type UserManagementRecord,
-  updateUserProfile,
+  updateUser,
 } from '../lib/cngr-api';
+import {
+  createUserFormSchema,
+  editUserFormSchema,
+  type CreateUserFormValues,
+  type EditUserFormValues,
+  type UserFormFieldValues,
+} from '../lib/form-schemas';
+import { scrollToFirstFieldError } from '../lib/form-utils';
 import { useUserDirectory } from '../lib/user-directory-context';
 import { EUserRole } from '../lib/navigation-session';
+import { readUserManagementListState } from './user-management-list-state';
 
 const GENDER_OPTIONS = [
   { value: '', label: 'Pilih Jenis Kelamin' },
@@ -28,56 +38,313 @@ const ROLE_OPTIONS = [
 
 type FormMode = 'create' | 'edit';
 
-function toDateInputValue(value: string): string {
-  if (!value) {
-    return '';
-  }
+const EMPTY_USER_VALUES: CreateUserFormValues = {
+  firstName: '',
+  lastName: '',
+  gender: '',
+  nik: '',
+  position: '',
+  email: '',
+  username: '',
+  password: '',
+  role: '',
+};
 
-  return value.slice(0, 10);
+function userRecordToFormValues(user: UserManagementRecord): EditUserFormValues {
+  return {
+    firstName: user.firstName,
+    lastName: user.lastName,
+    gender: user.gender,
+    nik: user.nik,
+    position: user.position,
+    email: user.email,
+    username: user.username,
+    role: user.role,
+    password: '',
+  };
+}
+
+function UserFormFields({
+  register,
+  errors,
+  isEditMode,
+}: {
+  register: UseFormRegister<UserFormFieldValues>;
+  errors: FieldErrors<UserFormFieldValues>;
+  isEditMode: boolean;
+}) {
+  return (
+    <>
+      <FormSection
+        step={1}
+        title="Data User"
+        description={
+          isEditMode
+            ? 'Perbarui identitas dasar user yang tersimpan di sistem.'
+            : 'Silahkan lengkapi data user di bawah ini untuk bisa menambahkan akun user.'
+        }
+      >
+        <div className="grid gap-4 sm:grid-cols-2">
+          <FormTextField
+            label="Nama Depan"
+            isRequired
+            placeholder="Masukkan nama depan"
+            error={errors.firstName?.message}
+            {...register('firstName')}
+          />
+          <FormTextField
+            label="Nama Belakang"
+            isRequired
+            placeholder="Masukkan nama belakang"
+            error={errors.lastName?.message}
+            {...register('lastName')}
+          />
+          <FormSelectField
+            label="Jenis Kelamin"
+            isRequired
+            options={GENDER_OPTIONS}
+            error={errors.gender?.message}
+            {...register('gender')}
+          />
+          <FormTextField
+            label="NIK Karyawan"
+            isRequired
+            placeholder="Masukkan NIK karyawan"
+            error={errors.nik?.message}
+            {...register('nik')}
+          />
+          <FormTextField
+            label="Jabatan"
+            isRequired
+            placeholder="Masukkan jabatan user"
+            error={errors.position?.message}
+            className="sm:col-span-2"
+            {...register('position')}
+          />
+        </div>
+      </FormSection>
+
+      <FormSection
+        step={2}
+        title="Data Akun"
+        description={
+          isEditMode
+            ? 'Perbarui data akun user di bawah ini.'
+            : 'Silahkan lengkapi data akun di bawah ini untuk bisa menambahkan akun user.'
+        }
+      >
+        <div className="grid gap-4 sm:grid-cols-2">
+          <FormTextField
+            label="Username"
+            isRequired
+            placeholder="Masukkan username"
+            error={errors.username?.message}
+            {...register('username')}
+          />
+          <FormSelectField
+            label="Role"
+            isRequired
+            options={ROLE_OPTIONS}
+            error={errors.role?.message}
+            {...register('role')}
+          />
+          <FormTextField
+            label="Email"
+            isRequired
+            type="email"
+            placeholder="nama@perusahaan.com"
+            error={errors.email?.message}
+            {...register('email')}
+          />
+          <FormTextField
+            label="Password"
+            isRequired={!isEditMode}
+            type="password"
+            placeholder={isEditMode ? 'Kosongkan jika tidak diubah' : 'Masukkan password'}
+            error={errors.password?.message}
+            {...register('password')}
+          />
+        </div>
+      </FormSection>
+    </>
+  );
+}
+
+function CreateUserForm({
+  onBack,
+  onSuccess,
+}: {
+  onBack: () => void;
+  onSuccess: () => Promise<void>;
+}) {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | undefined>();
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<CreateUserFormValues>({
+    resolver: zodResolver(createUserFormSchema),
+    defaultValues: EMPTY_USER_VALUES,
+    mode: 'onSubmit',
+    reValidateMode: 'onChange',
+  });
+
+  const onSubmit = async (values: CreateUserFormValues) => {
+    setSubmitError(undefined);
+    setIsSubmitting(true);
+
+    try {
+      await createUser({
+        email: values.email.trim(),
+        firstname: values.firstName.trim(),
+        gender: values.gender.trim(),
+        lastname: values.lastName.trim(),
+        nik: values.nik.trim(),
+        password: values.password,
+        position: values.position.trim(),
+        role: values.role.trim(),
+        username: values.username.trim(),
+      });
+      await onSuccess();
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : 'Gagal menyimpan user.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <form
+      className="flex flex-col gap-6"
+      noValidate
+      onSubmit={handleSubmit(onSubmit, (fieldErrors) => scrollToFirstFieldError(fieldErrors))}
+    >
+      <UserFormFields register={register} errors={errors} isEditMode={false} />
+
+      {submitError ? (
+        <p className="text-sm" role="alert" style={{ color: COLORS.primary }}>
+          {submitError}
+        </p>
+      ) : null}
+
+      <div className="flex justify-end gap-3 pt-2">
+        <Button type="button" variant="outline" size="md" onClick={onBack}>
+          Kembali
+        </Button>
+        <Button type="submit" variant="submit" size="md" disabled={isSubmitting}>
+          {isSubmitting ? 'Menyimpan…' : 'Simpan Data'}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+function EditUserForm({
+  detail,
+  onBack,
+  onSuccess,
+}: {
+  detail: UserManagementRecord;
+  onBack: () => void;
+  onSuccess: () => Promise<void>;
+}) {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | undefined>();
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<EditUserFormValues>({
+    resolver: zodResolver(editUserFormSchema),
+    defaultValues: EMPTY_USER_VALUES,
+    mode: 'onSubmit',
+    reValidateMode: 'onChange',
+  });
+
+  useEffect(() => {
+    reset(userRecordToFormValues(detail));
+  }, [detail, reset]);
+
+  const onSubmit = async (values: EditUserFormValues) => {
+    setSubmitError(undefined);
+    setIsSubmitting(true);
+
+    try {
+      await updateUser(detail.id, {
+        email: values.email.trim(),
+        firstname: values.firstName.trim(),
+        gender: values.gender.trim(),
+        lastname: values.lastName.trim(),
+        nik: values.nik.trim(),
+        position: values.position.trim(),
+        role: values.role.trim(),
+        username: values.username.trim(),
+        ...(values.password?.trim() ? { password: values.password } : {}),
+      });
+      await onSuccess();
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : 'Gagal menyimpan perubahan user.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <form
+      className="flex flex-col gap-6"
+      noValidate
+      onSubmit={handleSubmit(onSubmit, (fieldErrors) => scrollToFirstFieldError(fieldErrors))}
+    >
+      <UserFormFields register={register} errors={errors} isEditMode />
+
+      {submitError ? (
+        <p className="text-sm" role="alert" style={{ color: COLORS.primary }}>
+          {submitError}
+        </p>
+      ) : null}
+
+      <div className="flex justify-end gap-3 pt-2">
+        <Button type="button" variant="outline" size="md" onClick={onBack}>
+          Kembali
+        </Button>
+        <Button type="submit" variant="submit" size="md" disabled={isSubmitting}>
+          {isSubmitting ? 'Menyimpan…' : 'Simpan Data'}
+        </Button>
+      </div>
+    </form>
+  );
 }
 
 export default function UserManagementFormPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { id } = useParams();
   const mode: FormMode = id ? 'edit' : 'create';
-  const { getUser } = useUserDirectory();
+  const { getUser, refreshUsers } = useUserDirectory();
+  const listState = useMemo(
+    () => readUserManagementListState(location.state),
+    [location.state]
+  );
+
+  const returnToList = useCallback(() => {
+    navigate('/user-management', { state: listState });
+  }, [listState, navigate]);
+
+  const handleSaveSuccess = useCallback(async () => {
+    await refreshUsers();
+    returnToList();
+  }, [refreshUsers, returnToList]);
 
   const [detail, setDetail] = useState<UserManagementRecord | undefined>();
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [gender, setGender] = useState('');
-  const [nik, setNik] = useState('');
-  const [position, setPosition] = useState('');
-  const [email, setEmail] = useState('');
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [role, setRole] = useState('');
-  const [city, setCity] = useState('');
-  const [province, setProvince] = useState('');
-  const [postalCode, setPostalCode] = useState('');
-  const [birthDate, setBirthDate] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [formError, setFormError] = useState<string | undefined>();
+  const [isLoading, setIsLoading] = useState(mode === 'edit');
+  const [loadError, setLoadError] = useState<string | undefined>();
 
   useEffect(() => {
     if (mode !== 'edit' || !id) {
-      setDetail(undefined);
-      setFirstName('');
-      setLastName('');
-      setGender('');
-      setNik('');
-      setPosition('');
-      setEmail('');
-      setUsername('');
-      setPassword('');
-      setRole('');
-      setCity('');
-      setProvince('');
-      setPostalCode('');
-      setBirthDate('');
-      setFormError(undefined);
-      setIsLoading(false);
       return;
     }
 
@@ -86,7 +353,7 @@ export default function UserManagementFormPage() {
 
     async function loadUserDetail() {
       setIsLoading(true);
-      setFormError(undefined);
+      setLoadError(undefined);
 
       try {
         const user = await getUser(userId);
@@ -96,26 +363,14 @@ export default function UserManagementFormPage() {
 
         if (user) {
           setDetail(user);
-          setFirstName(user.firstName);
-          setLastName(user.lastName);
-          setGender(user.gender);
-          setNik(user.nik);
-          setPosition(user.position);
-          setEmail(user.email);
-          setUsername(user.username);
-          setRole(user.role);
-          setCity(user.city ?? '');
-          setProvince(user.province ?? '');
-          setPostalCode(user.postalCode ?? '');
-          setBirthDate(toDateInputValue(user.birthDate ?? ''));
         } else {
           setDetail(undefined);
-          setFormError('Data user tidak ditemukan.');
+          setLoadError('Data user tidak ditemukan.');
         }
       } catch (err) {
         if (!cancelled) {
           setDetail(undefined);
-          setFormError(err instanceof Error ? err.message : 'Gagal memuat detail user.');
+          setLoadError(err instanceof Error ? err.message : 'Gagal memuat detail user.');
         }
       } finally {
         if (!cancelled) {
@@ -139,70 +394,7 @@ export default function UserManagementFormPage() {
     [mode]
   );
 
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    setFormError(undefined);
-
-    if (!firstName.trim() || !lastName.trim() || !gender.trim() || !nik.trim() || !position.trim() || !email.trim()) {
-      setFormError('Lengkapi data user terlebih dahulu.');
-      return;
-    }
-
-    if (mode === 'create') {
-      if (!username.trim() || !password.trim() || !role.trim()) {
-        setFormError('Username, password, dan role wajib diisi.');
-        return;
-      }
-
-      setIsSubmitting(true);
-      try {
-        await createUser({
-          email: email.trim(),
-          firstname: firstName.trim(),
-          gender: gender.trim(),
-          lastname: lastName.trim(),
-          nik: nik.trim(),
-          password,
-          position: position.trim(),
-          role: role.trim(),
-          username: username.trim(),
-        });
-        navigate('/user-management');
-      } catch (err) {
-        setFormError(err instanceof Error ? err.message : 'Gagal menyimpan user.');
-      } finally {
-        setIsSubmitting(false);
-      }
-      return;
-    }
-
-    if (!detail?.id) {
-      setFormError('Data user tidak tersedia.');
-      return;
-    }
-
-    setIsSubmitting(true);
-    try {
-      await updateUserProfile(detail.id, {
-        firstname: firstName.trim(),
-        lastname: lastName.trim(),
-        gender: gender.trim(),
-        nik: nik.trim(),
-        position: position.trim(),
-        email: email.trim(),
-        city: city.trim() || undefined,
-        province: province.trim() || undefined,
-        postal_code: postalCode.trim() || undefined,
-        birth_date: birthDate ? new Date(birthDate).toISOString() : undefined,
-        ...(password.trim() ? { password } : {}),
-      });
-      navigate('/user-management');
-    } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'Gagal menyimpan perubahan user.');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+  const handleBack = () => returnToList();
 
   if (isLoading) {
     return (
@@ -218,7 +410,7 @@ export default function UserManagementFormPage() {
     <div className="flex flex-col">
       <PageHeader breadcrumb={breadcrumb} />
 
-      <div className="flex flex-col gap-6 p-10" style={{ backgroundColor: COLORS.backgroundGray }}>
+      <div className="flex flex-col gap-6 p-10">
         <div>
           <h1 className="text-lg font-bold" style={{ color: COLORS.textPrimary }}>
             User
@@ -231,180 +423,21 @@ export default function UserManagementFormPage() {
         </div>
 
         {mode === 'edit' && !detail ? (
-          <div className="mx-auto w-full max-w-3xl rounded-xl border bg-white p-6 shadow-sm" style={{ borderColor: COLORS.border }}>
+          <div className="mx-page-x rounded-xl border bg-white p-6 shadow-sm" style={{ borderColor: COLORS.border }}>
             <p className="text-sm" style={{ color: COLORS.textSecondary }}>
-              {formError ?? 'Data user tidak tersedia.'}
+              {loadError ?? 'Data user tidak tersedia.'}
             </p>
             <div className="mt-4">
-              <Button type="button" variant="outline" size="md" onClick={() => navigate('/user-management')}>
+              <Button type="button" variant="outline" size="md" onClick={handleBack}>
                 Kembali
               </Button>
             </div>
           </div>
-        ) : (
-          <form className="mx-auto flex w-full max-w-3xl flex-col gap-6" onSubmit={handleSubmit}>
-            <FormSection
-              step={1}
-              title="Data User"
-              description={
-                mode === 'edit'
-                  ? 'Perbarui identitas dasar user yang tersimpan di sistem.'
-                  : 'Silahkan lengkapi data user di bawah ini untuk bisa menambahkan akun user.'
-              }
-            >
-              <div className="grid gap-4 sm:grid-cols-2">
-                <FormTextField
-                  label="Nama Depan"
-                  isRequired
-                  placeholder="Masukkan nama depan"
-                  value={firstName}
-                  onChange={(e) => setFirstName(e.target.value)}
-                />
-                <FormTextField
-                  label="Nama Belakang"
-                  isRequired
-                  placeholder="Masukkan nama belakang"
-                  value={lastName}
-                  onChange={(e) => setLastName(e.target.value)}
-                />
-                <FormSelectField
-                  label="Jenis Kelamin"
-                  options={GENDER_OPTIONS}
-                  value={gender}
-                  onChange={(e) => setGender(e.target.value)}
-                />
-                <FormTextField
-                  label="NIK Karyawan"
-                  isRequired
-                  placeholder="Masukkan NIK karyawan"
-                  value={nik}
-                  onChange={(e) => setNik(e.target.value)}
-                />
-                <FormTextField
-                  label="Jabatan"
-                  isRequired
-                  placeholder="Masukkan jabatan user"
-                  value={position}
-                  onChange={(e) => setPosition(e.target.value)}
-                  className="sm:col-span-2"
-                />
-              </div>
-            </FormSection>
-
-            {mode === 'edit' ? (
-              <div className="rounded-xl border bg-white p-4 shadow-sm" style={{ borderColor: COLORS.border }}>
-                <InfoFieldGrid>
-                  <InfoField label="Username" value={username || '-'} />
-                  <InfoField label="Role" value={role || '-'} />
-                </InfoFieldGrid>
-                <p className="mt-4 text-xs" style={{ color: COLORS.textSecondary }}>
-                  Username dan role hanya bisa diubah saat user dibuat. Edit ini mengikuti endpoint profil.
-                </p>
-              </div>
-            ) : null}
-
-            <FormSection
-              step={2}
-              title="Data Akun"
-              description={
-                mode === 'edit'
-                  ? 'Perbarui detail akun dan informasi profil yang disediakan oleh backend.'
-                  : 'Silahkan lengkapi data akun di bawah ini untuk bisa menambahkan akun user.'
-              }
-            >
-              {mode === 'create' ? (
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <FormTextField
-                    label="Username"
-                    isRequired
-                    placeholder="Masukkan username"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                  />
-                  <FormSelectField
-                    label="Role"
-                    options={ROLE_OPTIONS}
-                    value={role}
-                    onChange={(e) => setRole(e.target.value)}
-                  />
-                  <FormTextField
-                    label="Email"
-                    isRequired
-                    type="email"
-                    placeholder="nama@perusahaan.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                  />
-                  <FormTextField
-                    label="Password"
-                    isRequired
-                    type="password"
-                    placeholder="Masukkan password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                  />
-                </div>
-              ) : (
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <FormTextField
-                    label="Email"
-                    isRequired
-                    type="email"
-                    placeholder="nama@perusahaan.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                  />
-                  <FormTextField
-                    label="Password Baru"
-                    type="password"
-                    placeholder="Kosongkan jika tidak diubah"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                  />
-                  <FormTextField
-                    label="Kabupaten / Kota"
-                    placeholder="Masukkan kabupaten atau kota"
-                    value={city}
-                    onChange={(e) => setCity(e.target.value)}
-                  />
-                  <FormTextField
-                    label="Provinsi"
-                    placeholder="Masukkan provinsi"
-                    value={province}
-                    onChange={(e) => setProvince(e.target.value)}
-                  />
-                  <FormTextField
-                    label="Kode Pos"
-                    placeholder="Masukkan kode pos"
-                    value={postalCode}
-                    onChange={(e) => setPostalCode(e.target.value)}
-                  />
-                  <FormTextField
-                    label="Tanggal Lahir"
-                    type="date"
-                    value={birthDate}
-                    onChange={(e) => setBirthDate(e.target.value)}
-                  />
-                </div>
-              )}
-            </FormSection>
-
-            {formError ? (
-              <p className="text-sm" style={{ color: COLORS.primary }}>
-                {formError}
-              </p>
-            ) : null}
-
-            <div className="flex justify-end gap-3 pt-2">
-              <Button type="button" variant="outline" size="md" onClick={() => navigate('/user-management')}>
-                Kembali
-              </Button>
-              <Button type="submit" size="md" disabled={isSubmitting}>
-                {isSubmitting ? 'Menyimpan…' : 'Simpan Data'}
-              </Button>
-            </div>
-          </form>
-        )}
+        ) : mode === 'create' ? (
+          <CreateUserForm onBack={handleBack} onSuccess={handleSaveSuccess} />
+        ) : detail ? (
+          <EditUserForm detail={detail} onBack={handleBack} onSuccess={handleSaveSuccess} />
+        ) : null}
       </div>
     </div>
   );

@@ -2,17 +2,24 @@ import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AccountSectionCard } from '../../components/account';
 import { FormTextField } from '../../components/forms';
-import { COLORS } from '../../constants/colors';
+import { changePassword } from '../../lib/cngr-api';
+import { useAuth } from '../../lib/auth-context';
 
 export default function AccountSecurityPage() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [formError, setFormError] = useState<string | undefined>();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    if (!user?.id) {
+      setFormError('Data akun tidak tersedia.');
+      return;
+    }
     if (!currentPassword.trim()) {
       setFormError('Kata sandi saat ini wajib diisi.');
       return;
@@ -25,8 +32,20 @@ export default function AccountSecurityPage() {
       setFormError('Kata sandi baru dan konfirmasi tidak cocok.');
       return;
     }
+
     setFormError(undefined);
-    navigate('/account/user');
+    setIsSubmitting(true);
+    try {
+      await changePassword(user.id, {
+        old_password: currentPassword,
+        new_password: newPassword,
+      });
+      navigate('/account/user');
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : 'Gagal mengubah kata sandi.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -36,11 +55,7 @@ export default function AccountSecurityPage() {
         title="Ubah kata sandi"
         description="Masukkan kata sandi saat ini, lalu tentukan kata sandi baru dan konfirmasi."
       >
-        {formError ? (
-          <p className="text-sm font-medium" style={{ color: COLORS.primary }}>
-            {formError}
-          </p>
-        ) : null}
+        {formError ? <p className="text-sm text-red-600">{formError}</p> : null}
         <div className="grid max-w-xl gap-4">
           <FormTextField
             label="Kata sandi saat ini"
@@ -74,6 +89,7 @@ export default function AccountSecurityPage() {
           />
         </div>
       </AccountSectionCard>
+      {isSubmitting ? <p className="text-sm text-gray-500">Menyimpan perubahan...</p> : null}
     </form>
   );
 }

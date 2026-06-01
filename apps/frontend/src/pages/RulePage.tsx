@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import PageHeader from '../components/layout/PageHeader';
+import SitePageHeader from '../components/layout/SitePageHeader';
 import {
   Button,
   ConfirmationModalComponent,
@@ -11,6 +11,7 @@ import {
 import { COLORS } from '../constants/colors';
 import {
   deleteRegulation,
+  downloadRegulation,
   listRegulations,
   listRegulationsBySite,
   type RegulationEditState,
@@ -252,7 +253,7 @@ export default function RulePage() {
 
   return (
     <div className="flex flex-col">
-      <PageHeader title="Data Peraturan" />
+      <SitePageHeader />
 
       <div className="flex flex-col p-10">
         <div className="mb-8 flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
@@ -326,8 +327,10 @@ export default function RulePage() {
                 setDeleteError(undefined);
                 setDeleteTarget(row);
               }
-              if (action === 'download' && row.fileUrl) {
-                window.open(row.fileUrl, '_blank', 'noopener,noreferrer');
+              if (action === 'download') {
+                void downloadRegulation(row.id, row.title).catch((err) => {
+                  setError(err instanceof Error ? err.message : 'Gagal mengunduh peraturan.');
+                });
               }
             }}
           />

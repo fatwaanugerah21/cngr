@@ -11,12 +11,12 @@ import {
 import { COLORS } from '../constants/colors';
 import { useSite } from '../lib/site-context';
 import {
-  deleteReclamation,
-  listReclamationBySite,
+  deleteRehabDas,
+  listRehabDasBySite,
   type ProductionRecord,
-  type ReclamationEditState,
+  type RehabDasEditState,
 } from '../lib/cngr-api';
-type ReclamationRow = {
+type RehabDasRow = {
   id: string;
   date: string;
   site: string;
@@ -47,7 +47,7 @@ function statusPillStyle(status: string): { color: string; backgroundColor: stri
   return { color: '#DC2626', backgroundColor: 'color-mix(in srgb, #EF4444 14%, #FFFFFF)' };
 }
 
-const TABLE_COLUMNS: DataTableColumnDef<ReclamationRow>[] = [
+const TABLE_COLUMNS: DataTableColumnDef<RehabDasRow>[] = [
   {
     id: 'date',
     header: 'Tanggal',
@@ -55,7 +55,7 @@ const TABLE_COLUMNS: DataTableColumnDef<ReclamationRow>[] = [
     accessorKey: 'date',
     sortable: true,
   },
-  { id: 'site', header: 'Site', kind: 'text', accessorKey: 'site', sortable: true },
+  { id: 'site', header: 'Lahan', kind: 'text', accessorKey: 'site', sortable: true },
   { id: 'realization', header: 'Realisasi', kind: 'number', accessorKey: 'realization', sortable: true },
   { id: 'target', header: 'Target', kind: 'number', accessorKey: 'target', sortable: true },
   {
@@ -99,12 +99,12 @@ function PlusIcon() {
   );
 }
 
-export default function ReclamationPage() {
+export default function RehabDasPage() {
   const navigate = useNavigate();
   const { selectedSite } = useSite();
   const [search, setSearch] = useState('');
-  const [rows, setRows] = useState<ReclamationRow[]>([]);
-  const [deleteTarget, setDeleteTarget] = useState<ReclamationRow | null>(null);
+  const [rows, setRows] = useState<RehabDasRow[]>([]);
+  const [deleteTarget, setDeleteTarget] = useState<RehabDasRow | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | undefined>();
   const [isLoading, setIsLoading] = useState(false);
@@ -113,7 +113,7 @@ export default function ReclamationPage() {
   useEffect(() => {
     let cancelled = false;
 
-    async function loadReclamation() {
+    async function loadRehabDas() {
       if (!selectedSite?.id) {
         setRows([]);
         setIsLoading(false);
@@ -124,11 +124,11 @@ export default function ReclamationPage() {
       setIsLoading(true);
       setError(undefined);
       try {
-        const reclamation = await listReclamationBySite(selectedSite.id);
+        const rehabDas = await listRehabDasBySite(selectedSite.id);
         if (cancelled) return;
 
         setRows(
-          reclamation.map<ReclamationRow>((row: ProductionRecord) => ({
+          rehabDas.map<RehabDasRow>((row: ProductionRecord) => ({
             id: row.id,
             date: row.date,
             site: row.site || selectedSite.name,
@@ -140,7 +140,7 @@ export default function ReclamationPage() {
         );
       } catch (err) {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : 'Gagal memuat data reklamasi.');
+          setError(err instanceof Error ? err.message : 'Gagal memuat data rehab DAS.');
           setRows([]);
         }
       } finally {
@@ -148,7 +148,7 @@ export default function ReclamationPage() {
       }
     }
 
-    loadReclamation();
+    loadRehabDas();
 
     return () => {
       cancelled = true;
@@ -174,11 +174,11 @@ export default function ReclamationPage() {
     setIsDeleting(true);
     setDeleteError(undefined);
     try {
-      await deleteReclamation(deleteTarget.id);
+      await deleteRehabDas(deleteTarget.id);
       setRows((prev) => prev.filter((r) => r.id !== deleteTarget.id));
       setDeleteTarget(null);
     } catch (err) {
-      setDeleteError(err instanceof Error ? err.message : 'Gagal menghapus data reklamasi.');
+      setDeleteError(err instanceof Error ? err.message : 'Gagal menghapus data rehab DAS.');
     } finally {
       setIsDeleting(false);
     }
@@ -194,20 +194,20 @@ export default function ReclamationPage() {
         <div className="mb-8 flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h1 className="text-lg font-bold" style={{ color: COLORS.textPrimary }}>
-              Operasional Reklamasi
+              Operasional Rehab DAS
             </h1>
             <p className="mt-1 text-xs" style={{ color: COLORS.textSecondary }}>
-              Pengelolaan Reklamasi untuk setiap site, data realisasi dan target yang ingin dicapai dapat diinput disini
+              Pengelolaan Rehab DAS untuk setiap site, data realisasi dan target yang ingin dicapai dapat diinput disini
             </p>
           </div>
           <Button
             type="button"
             size="sm"
             leftIcon={<PlusIcon />}
-            onClick={() => navigate('/reclamation/add')}
+            onClick={() => navigate('/rehab-das/add')}
             disabled={!hasSelectedSite || isLoading}
           >
-            Tambah Reklamasi
+            Tambah Rehab DAS
           </Button>
         </div>
 
@@ -242,7 +242,7 @@ export default function ReclamationPage() {
             className="rounded-lg border bg-white p-6 text-sm shadow-sm"
             style={{ borderColor: COLORS.border, color: COLORS.textSecondary }}
           >
-            Memuat data reklamasi...
+            Memuat data rehab DAS...
           </div>
         ) : (
           <DataTable
@@ -256,12 +256,12 @@ export default function ReclamationPage() {
                 setDeleteTarget(row);
               }
               if (action === 'edit') {
-                const editState: ReclamationEditState = {
+                const editState: RehabDasEditState = {
                   date: row.date,
                   realization: row.realization,
                   target: row.target,
                 };
-                navigate(`/reclamation/edit/${row.id}`, { state: editState });
+                navigate(`/rehab-das/edit/${row.id}`, { state: editState });
               }
             }}
           />
@@ -276,11 +276,11 @@ export default function ReclamationPage() {
             setDeleteError(undefined);
           }
         }}
-        title="Hapus Reklamasi"
+        title="Hapus Rehab DAS"
         description={
           deleteTarget ? (
             <>
-              Apakah anda yakin untuk menghapus data reklamasi{' '}
+              Apakah anda yakin untuk menghapus data rehab DAS{' '}
               <span style={{ color: '#2563EB', textDecoration: 'underline', fontWeight: 600 }}>{deleteTarget.site}</span>
               {deleteError ? (
                 <span className="mt-2 block text-sm" style={{ color: COLORS.primary }}>
@@ -299,4 +299,3 @@ export default function ReclamationPage() {
     </div>
   );
 }
-

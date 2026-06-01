@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Bar,
   BarChart,
@@ -13,6 +14,7 @@ import {
   YAxis,
 } from 'recharts';
 import mainImage from '../assets/main-image.jpg';
+import { Button, ConfirmationModalComponent } from '../components/ui';
 import { COLORS } from '../constants/colors';
 import {
   BUKAAN_LAHAN,
@@ -29,8 +31,9 @@ import {
   type StatusHistoryRow,
 } from '../data/site-dashboard-dummy';
 import { useAuth } from '../lib/auth-context';
-import { fetchSiteDetail } from '../lib/cngr-api';
+import { deleteSite, fetchSiteDetail } from '../lib/cngr-api';
 import type { SiteRecord } from '../data/sites-dummy';
+import { EUserRole, resolveSelectedSiteDisplayName } from '../lib/navigation-session';
 import { useSite } from '../lib/site-context';
 import { useUserDirectory } from '../lib/user-directory-context';
 
@@ -213,7 +216,9 @@ function ChartTooltip({
 }
 
 export default function SiteDashboardPage() {
-  const { selectedSite } = useSite();
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const { selectedSite, clearSelectedSite } = useSite();
   const { getUser } = useUserDirectory();
   const [siteDetail, setSiteDetail] = useState<SiteRecord | undefined>();
   const [supervisorName, setSupervisorName] = useState('-');
@@ -221,8 +226,13 @@ export default function SiteDashboardPage() {
   const [supervisorAvatar, setSupervisorAvatar] = useState<string | undefined>();
   const [supervisorPosition, setSupervisorPosition] = useState('Supervisor Site');
   const [statusMonth, setStatusMonth] = useState(STATUS_HISTORY_MONTH_OPTIONS[0]?.value ?? '2026-01');
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | undefined>();
 
-  const siteName = selectedSite?.name ?? siteDetail?.name ?? 'Site';
+  const isAdmin = user?.role === EUserRole.ADMIN;
+
+  const siteName = resolveSelectedSiteDisplayName(selectedSite, siteDetail?.name);
 
   useEffect(() => {
     let cancelled = false;
@@ -298,8 +308,27 @@ export default function SiteDashboardPage() {
   const siteStatusLabel = siteDetail?.status === 'inactive' ? 'Inactive' : 'Active';
   const siteStatusColor = siteDetail?.status === 'inactive' ? '#DC2626' : '#16A34A';
 
+  const onConfirmDelete = async () => {
+    if (!selectedSite?.id || isDeleting) {
+      return;
+    }
+
+    setIsDeleting(true);
+    setDeleteError(undefined);
+
+    try {
+      await deleteSite(selectedSite.id);
+      clearSelectedSite();
+      navigate('/site-management', { replace: true });
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : 'Gagal menghapus site.');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   return (
-    <div className="flex min-h-full flex-col" style={{ backgroundColor: COLORS.backgroundGray }}>
+    <div className="flex min-h-full flex-col">
       <SiteDashboardHero siteName={siteName} />
 
       <div className="flex flex-col gap-6 p-6 lg:p-8">
@@ -371,6 +400,23 @@ export default function SiteDashboardPage() {
                   </dd>
                 </div>
               </dl>
+              {isAdmin ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  fullWidth
+                  className="mt-5 min-h-10"
+                  disabled={!selectedSite?.id || isDeleting}
+                  onClick={() => {
+                    setDeleteError(undefined);
+                    setDeleteOpen(true);
+                  }}
+                  style={{ color: '#DC2626', borderColor: '#FECACA' }}
+                >
+                  Hapus Site
+                </Button>
+              ) : null}
             </DashboardCard>
           </div>
 
@@ -554,6 +600,33 @@ export default function SiteDashboardPage() {
           </div>
         </div>
       </div>
+
+      <ConfirmationModalComponent
+        open={deleteOpen}
+        onOpenChange={(open) => {
+          if (!open && !isDeleting) {
+            setDeleteOpen(false);
+            setDeleteError(undefined);
+          }
+        }}
+        title="Hapus Site"
+        description={
+          <>
+            Apakah anda yakin untuk menghapus site{' '}
+            <span style={{ color: '#2563EB', textDecoration: 'underline', fontWeight: 600 }}>{siteName}</span>?
+            {deleteError ? (
+              <span className="mt-2 block text-sm" style={{ color: COLORS.primary }}>
+                {deleteError}
+              </span>
+            ) : null}
+          </>
+        }
+        confirmLabel={isDeleting ? 'Menghapus…' : 'Hapus Site'}
+        cancelLabel="Kembali"
+        confirmDisabled={isDeleting}
+        closeOnConfirm={false}
+        onConfirm={() => void onConfirmDelete()}
+      />
     </div>
   );
 }

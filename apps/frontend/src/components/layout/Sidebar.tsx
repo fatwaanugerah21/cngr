@@ -2,6 +2,7 @@ import { useEffect, useState, type ComponentType } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { COLORS } from '../../constants/colors';
 import DashboardMenuIcon from '../../icons/menu-item-icons/dashboard-menu.icon';
+import HomeMenuIcon from '../../icons/menu-item-icons/home-menu.icon';
 import SiteManagementMenuIcon from '../../icons/menu-item-icons/site-management-menu.icon';
 import UserManagementMenuIcon from '../../icons/menu-item-icons/user-management-menu.icon';
 import ProductionMenuIcon from '../../icons/menu-item-icons/production-menu.icon';
@@ -14,6 +15,7 @@ import mainImage from '../../assets/main-image.jpg';
 import cngrText from '../../assets/cngr-text.png';
 import ReclamationMenuIcon from '../../icons/menu-item-icons/reclamation-menu.icon';
 import LandOpeningMenuIcon from '../../icons/menu-item-icons/land-opening-menu.icon';
+import RehabDasMenuIcon from '../../icons/menu-item-icons/rehab-das-menu.icon';
 import {
   EUserRole,
   getStoredSelectedSite,
@@ -36,15 +38,22 @@ interface NavGroupDef {
 }
 
 const adminMainNavGroups: NavGroupDef[] = [
+  // {
+  //   title: 'Utama',
+  //   items: [{ path: '/dashboard', label: 'Homepage', icon: HomeMenuIcon }],
+  // },
   {
-    title: 'Utama',
-    items: [{ path: '/dashboard', label: 'Dasbor', icon: DashboardMenuIcon }],
+    title: 'Master Data',
+    items: [
+      { path: '/site-management', label: 'Site Management', icon: SiteManagementMenuIcon },
+      { path: '/user-management', label: 'User Management', icon: UserManagementMenuIcon },
+    ],
   },
   {
-    title: 'Data Master',
+    title: 'Umum',
     items: [
-      { path: '/site-management', label: 'Manajemen Site', icon: SiteManagementMenuIcon },
-      { path: '/user-management', label: 'Manajemen Pengguna', icon: UserManagementMenuIcon },
+      { path: '/account', label: 'Akun', icon: AccountMenuIcon },
+      { path: '/logout', label: 'Keluar', icon: LogoutMenuIcon },
     ],
   },
 ];
@@ -59,6 +68,7 @@ const siteNavGroups: NavGroupDef[] = [
     items: [
       { path: '/production', label: 'Produksi', icon: ProductionMenuIcon },
       { path: '/land-opening', label: 'Bukaan Lahan', icon: LandOpeningMenuIcon },
+      { path: '/rehab-das', label: 'Rehab DAS', icon: RehabDasMenuIcon },
       { path: '/reclamation', label: 'Reklamasi', icon: ReclamationMenuIcon },
     ],
   },
@@ -82,16 +92,18 @@ const backToMainMenuItem: NavItemDef = {
   label: 'Kembali Ke Menu Awal',
   icon: SiteManagementMenuIcon,
 };
-const missingSiteRedirectPath = '/dashboard';
-
 function isPathInNavGroups(pathname: string, navGroups: NavGroupDef[]): boolean {
   return navGroups.some((group) =>
     group.items.some((item) => pathname === item.path || pathname.startsWith(`${item.path}/`))
   );
 }
 
-function getSidebarNavGroups(role: EUserRole, selectedSite?: SelectedSite, isInAdminMainNavRoute?: boolean): NavGroupDef[] {
-  if ((role === EUserRole.ADMIN || role === EUserRole.DIRECTOR) && selectedSite == null && isInAdminMainNavRoute) {
+function navGroupsIncludeLogout(navGroups: NavGroupDef[]): boolean {
+  return navGroups.some((group) => group.items.some((item) => item.path === logoutItem.path));
+}
+
+function getSidebarNavGroups(role: EUserRole, isInAdminMainNavRoute: boolean): NavGroupDef[] {
+  if ((role === EUserRole.ADMIN || role === EUserRole.DIRECTOR) && isInAdminMainNavRoute) {
     return adminMainNavGroups;
   }
 
@@ -131,7 +143,7 @@ function NavItem({ path, label, icon: Icon }: NavItemProps) {
     <NavLink
       to={path}
       className={({ isActive }) =>
-        `flex w-full items-center gap-4 rounded-lg px-4 py-2.5 text-sm transition-colors hover:bg-white/10 ${isActive ? '!bg-[#EE252B]' : ''
+        `flex w-full items-center gap-4 rounded-lg px-2 py-2.5 text-sm transition-colors hover:bg-white/10 ${isActive ? '!bg-[#EE252B]' : ''
         }`
       }
       style={({ isActive }) => ({
@@ -146,7 +158,7 @@ function NavItem({ path, label, icon: Icon }: NavItemProps) {
               fill={COLORS.white}
             />
           </span>
-          <span className={`!text-white`}> {label}</span>
+          <span className="!text-white">{label}</span>
         </>
       )}
     </NavLink>
@@ -157,7 +169,7 @@ function NavGroup({ title, items }: NavGroupDef) {
   return (
     <div className="mt-8 first:mt-0">
       <span
-        className="mb-3 block text-xs font-semibold uppercase tracking-wider"
+        className="mb-3 block text-xs font-semibold tracking-wide"
         style={{ color: COLORS.sidebarText }}
       >
         {title}
@@ -176,17 +188,17 @@ export default function Sidebar() {
   const location = useLocation();
   const { role, selectedSite } = useNavigationSession();
   const isInAdminMainNavRoute = isPathInNavGroups(location.pathname, adminMainNavGroups);
-  const isInSiteNavRoute = isPathInNavGroups(location.pathname, siteNavGroups);
 
-  const navGroups = getSidebarNavGroups(role, selectedSite, isInAdminMainNavRoute);
+  const navGroups = getSidebarNavGroups(role, isInAdminMainNavRoute);
+  const showStandaloneLogout = !navGroupsIncludeLogout(navGroups);
 
   const { clearSelectedSite } = useSite();
 
   useEffect(() => {
-    if (selectedSite == null && isInSiteNavRoute && role === EUserRole.ADMIN) {
-      navigate(missingSiteRedirectPath, { replace: true });
+    if (role === EUserRole.SUPERVISOR && isInAdminMainNavRoute) {
+      navigate('/site-dashboard', { replace: true });
     }
-  }, [isInSiteNavRoute, navigate, selectedSite]);
+  }, [isInAdminMainNavRoute, navigate, role]);
 
   const handleBackToMainMenu = () => {
     clearSelectedSite();
@@ -230,7 +242,7 @@ export default function Sidebar() {
                 <div className="mt-8">
                   <button
                     type="button"
-                    className="flex w-full items-center gap-4 rounded-lg px-4 py-2.5 text-left text-sm transition-colors hover:bg-white/10"
+                    className="flex w-full items-center gap-4 rounded-lg px-2 py-2.5 text-left text-sm transition-colors hover:bg-white/10"
                     style={{ color: COLORS.sidebarTextInactive }}
                     onClick={handleBackToMainMenu}
                   >
@@ -241,9 +253,11 @@ export default function Sidebar() {
                   </button>
                 </div>
               ) : null}
-              <div className="mt-auto shrink-0 pt-8">
-                <NavItem {...logoutItem} />
-              </div>
+              {showStandaloneLogout ? (
+                <div className="mt-auto shrink-0 pt-8">
+                  <NavItem {...logoutItem} />
+                </div>
+              ) : null}
             </nav>
           </div>
         </div>

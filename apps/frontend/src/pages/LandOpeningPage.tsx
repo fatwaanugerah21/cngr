@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import PageHeader from '../components/layout/PageHeader';
+import SitePageHeader from '../components/layout/SitePageHeader';
 import {
   Button,
   ConfirmationModalComponent,
@@ -16,7 +16,6 @@ import {
   type LandOpeningEditState,
   type ProductionRecord,
 } from '../lib/cngr-api';
-
 type LandOpeningRow = {
   id: string;
   date: string;
@@ -49,13 +48,19 @@ function statusPillStyle(status: string): { color: string; backgroundColor: stri
 }
 
 const TABLE_COLUMNS: DataTableColumnDef<LandOpeningRow>[] = [
-  { id: 'date', header: 'Date', kind: 'text', accessorKey: 'date', sortable: true },
-  { id: 'site', header: 'Site', kind: 'text', accessorKey: 'site', sortable: true },
-  { id: 'realization', header: 'Realisasi', kind: 'text', accessorKey: 'realization', sortable: true },
-  { id: 'target', header: 'Target', kind: 'text', accessorKey: 'target', sortable: true },
+  {
+    id: 'date',
+    header: 'Tanggal',
+    kind: 'date',
+    accessorKey: 'date',
+    sortable: true,
+  },
+  { id: 'site', header: 'Lahan', kind: 'text', accessorKey: 'site', sortable: true },
+  { id: 'realization', header: 'Realisasi', kind: 'number', accessorKey: 'realization', sortable: true },
+  { id: 'target', header: 'Target', kind: 'number', accessorKey: 'target', sortable: true },
   {
     id: 'efficiency',
-    header: 'Efficiency',
+    header: 'Efisiensi',
     kind: 'text',
     accessorKey: 'efficiency',
     sortable: true,
@@ -183,7 +188,7 @@ export default function LandOpeningPage() {
 
   return (
     <div className="flex flex-col">
-      <PageHeader title="Operasional Bukaan Lahan" />
+      <SitePageHeader />
 
       <div className="flex flex-col p-10">
         <div className="mb-8 flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">

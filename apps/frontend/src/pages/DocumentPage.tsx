@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import PageHeader from '../components/layout/PageHeader';
+import SitePageHeader from '../components/layout/SitePageHeader';
 import {
   Button,
   ConfirmationModalComponent,
@@ -11,6 +11,7 @@ import {
 import { COLORS } from '../constants/colors';
 import {
   deleteDocument,
+  downloadDocument,
   listDocuments,
   listDocumentsBySite,
   type DocumentEditState,
@@ -252,7 +253,7 @@ export default function DocumentPage() {
 
   return (
     <div className="flex flex-col">
-      <PageHeader title="Data Dokumen" />
+      <SitePageHeader />
 
       <div className="flex flex-col p-10">
         <div className="mb-8 flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
@@ -327,9 +328,9 @@ export default function DocumentPage() {
                 setDeleteTarget(row);
               }
               if (action === 'download') {
-                if (row.fileUrl) {
-                  window.open(row.fileUrl, '_blank', 'noopener,noreferrer');
-                }
+                void downloadDocument(row.id, row.title).catch((err) => {
+                  setError(err instanceof Error ? err.message : 'Gagal mengunduh dokumen.');
+                });
               }
             }}
           />

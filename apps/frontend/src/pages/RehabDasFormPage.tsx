@@ -2,15 +2,15 @@ import { useEffect, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { SiteMetricFormShell } from '../components/forms';
 import { useSite } from '../lib/site-context';
-import { createLandOpening, type LandOpeningEditState, updateLandOpening } from '../lib/cngr-api';
+import { createRehabDas, type RehabDasEditState, updateRehabDas } from '../lib/cngr-api';
 import type { SiteMetricFormValues } from '../lib/form-schemas';
 
-export default function LandOpeningFormPage() {
+export default function RehabDasFormPage() {
   const navigate = useNavigate();
   const { id } = useParams();
   const location = useLocation();
   const isEditMode = Boolean(id);
-  const editState = location.state as LandOpeningEditState | null;
+  const editState = location.state as RehabDasEditState | null;
 
   const [submitError, setSubmitError] = useState<string | undefined>();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -22,7 +22,7 @@ export default function LandOpeningFormPage() {
     }
 
     if (!editState) {
-      setSubmitError('Data bukaan lahan tidak ditemukan. Buka halaman daftar dan coba lagi.');
+      setSubmitError('Data rehab DAS tidak ditemukan. Buka halaman daftar dan coba lagi.');
     }
   }, [isEditMode, editState]);
 
@@ -32,12 +32,12 @@ export default function LandOpeningFormPage() {
     }
 
     if (isEditMode && !id) {
-      setSubmitError('Data bukaan lahan tidak valid.');
+      setSubmitError('Data rehab DAS tidak valid.');
       return;
     }
 
     if (isEditMode && !editState) {
-      setSubmitError('Data bukaan lahan tidak ditemukan. Buka halaman daftar dan coba lagi.');
+      setSubmitError('Data rehab DAS tidak ditemukan. Buka halaman daftar dan coba lagi.');
       return;
     }
 
@@ -50,7 +50,7 @@ export default function LandOpeningFormPage() {
     };
 
     if (!Number.isFinite(payload.actual) || !Number.isFinite(payload.target) || !Number.isFinite(siteId)) {
-      setSubmitError('Data bukaan lahan tidak valid.');
+      setSubmitError('Data rehab DAS tidak valid.');
       return;
     }
 
@@ -59,18 +59,18 @@ export default function LandOpeningFormPage() {
 
     try {
       if (isEditMode && id) {
-        await updateLandOpening(id, payload);
+        await updateRehabDas(id, payload);
       } else {
-        await createLandOpening(payload);
+        await createRehabDas(payload);
       }
-      navigate('/land-opening');
+      navigate('/rehab-das');
     } catch (err) {
       setSubmitError(
         err instanceof Error
           ? err.message
           : isEditMode
-            ? 'Gagal memperbarui data bukaan lahan.'
-            : 'Gagal menyimpan data bukaan lahan.'
+            ? 'Gagal memperbarui data rehab DAS.'
+            : 'Gagal menyimpan data rehab DAS.'
       );
     } finally {
       setIsSubmitting(false);
@@ -87,10 +87,10 @@ export default function LandOpeningFormPage() {
 
   return (
     <SiteMetricFormShell
-      breadcrumbLabel="Bukaan Lahan"
-      listPath="/land-opening"
-      formTitle={isEditMode ? 'Edit Bukaan Lahan' : 'Tambah Bukaan Lahan'}
-      notFoundMessage="Data bukaan lahan tidak ditemukan. Buka halaman daftar dan coba lagi."
+      breadcrumbLabel="Rehab DAS"
+      listPath="/rehab-das"
+      formTitle={isEditMode ? 'Edit Rehab DAS' : 'Tambah Rehab DAS'}
+      notFoundMessage="Data rehab DAS tidak ditemukan. Buka halaman daftar dan coba lagi."
       isEditMode={isEditMode}
       recordId={id}
       editState={editState}

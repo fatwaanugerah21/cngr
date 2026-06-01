@@ -1,3 +1,4 @@
+import { readApiErrorMessage } from './api-response';
 import { getStoredAccessToken } from './auth-session';
 
 const API_V1_PREFIX = '/api/v1';
@@ -25,6 +26,16 @@ export function apiV1Url(path: string): string {
   return `${API_V1_BASE}${segment}`;
 }
 
+function formatApiHttpErrorMessage(
+  status: number,
+  statusText: string,
+  responseBody: string
+): string {
+  const base = `Permintaan gagal: ${status} ${statusText}`;
+  const apiMessage = readApiErrorMessage(responseBody);
+  return apiMessage ? `${base} — ${apiMessage}` : base;
+}
+
 export class ApiHttpError extends Error {
   readonly name = 'ApiHttpError';
 
@@ -33,7 +44,7 @@ export class ApiHttpError extends Error {
     readonly statusText: string,
     readonly responseBody: string
   ) {
-    super(`Permintaan gagal: ${status} ${statusText}`);
+    super(formatApiHttpErrorMessage(status, statusText, responseBody));
   }
 }
 

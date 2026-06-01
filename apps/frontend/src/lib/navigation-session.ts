@@ -23,6 +23,33 @@ export type SelectedSite = {
   name: string;
 };
 
+export function isUnresolvedSiteDisplayName(site: SelectedSite): boolean {
+  const name = site.name.trim();
+  return name === '' || name === site.id;
+}
+
+export function resolveSelectedSiteDisplayName(
+  site: SelectedSite | undefined,
+  detailName?: string,
+  fallback = 'Site'
+): string {
+  const fromDetail = detailName?.trim();
+  if (fromDetail && site && fromDetail !== site.id) {
+    return fromDetail;
+  }
+  if (fromDetail && !site) {
+    return fromDetail;
+  }
+  if (!site) {
+    return fallback;
+  }
+  const fromSelection = site.name.trim();
+  if (fromSelection && fromSelection !== site.id) {
+    return fromSelection;
+  }
+  return fallback;
+}
+
 const USER_ROLE_STORAGE_KEY = 'cngr_user_role';
 const SELECTED_SITE_STORAGE_KEY = 'cngr_selected_site';
 

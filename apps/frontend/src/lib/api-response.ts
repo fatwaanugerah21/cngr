@@ -70,6 +70,26 @@ export function isApiSuccess(value: unknown): boolean {
   return meta.code >= 200 && meta.code < 300;
 }
 
+export function readApiErrorMessage(responseBody: string): string | undefined {
+  const trimmed = responseBody.trim();
+  if (trimmed === '') {
+    return undefined;
+  }
+
+  try {
+    const parsed = JSON.parse(trimmed) as Record<string, unknown>;
+    const metaMessage = readApiMeta(parsed)?.message;
+    const raw =
+      (typeof metaMessage === 'string' && metaMessage.trim()) ||
+      (typeof parsed.error === 'string' && parsed.error.trim()) ||
+      (typeof parsed.message === 'string' && parsed.message.trim()) ||
+      (typeof parsed.detail === 'string' && parsed.detail.trim());
+    return raw || undefined;
+  } catch {
+    return trimmed;
+  }
+}
+
 export function unwrapApiData<T>(value: unknown): T | undefined {
   if (!isRecord(value)) {
     return value as T | undefined;

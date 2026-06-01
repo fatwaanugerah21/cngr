@@ -5,6 +5,10 @@ export const COLORS = {
   primary: '#EE252B',
   primaryHover: '#D91F25',
 
+  /** Form save / submit actions */
+  submit: '#2563EB',
+  submitHover: '#1D4ED8',
+
   /** Profile completion, success states */
   success: '#22C55E',
 

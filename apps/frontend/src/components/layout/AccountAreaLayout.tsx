@@ -99,6 +99,7 @@ export default function AccountAreaLayout() {
         </Button>
         <Button
           type="submit"
+          variant="submit"
           size="sm"
           form={isUserEdit ? 'account-edit-form' : 'account-security-form'}
         >
@@ -110,7 +111,7 @@ export default function AccountAreaLayout() {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <PageHeader breadcrumb={buildBreadcrumb(pathname)} />
-      <div className="flex-1 p-6 sm:p-8" style={{ backgroundColor: COLORS.backgroundGray }}>
+      <div className="flex-1 p-6 sm:p-8">
         <div className="mx-auto max-w-6xl">
           <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center">
             <div className="min-w-0 flex-1">

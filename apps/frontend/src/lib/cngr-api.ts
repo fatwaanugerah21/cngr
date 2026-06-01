@@ -159,19 +159,41 @@ export type CreateSitePayload = {
 export type CreateProductionPayload = {
   actual: number;
   date: string;
-  efficiency: number;
-  siteID: number;
-  status: string;
+  site_id: number;
+  target: number;
+};
+
+export type UpdateProductionPayload = {
+  actual: number;
+  date: string;
+  site_id: number;
+  target: number;
+};
+
+export type ProductionEditState = {
+  date: string;
+  realization: number;
   target: number;
 };
 
 export type CreateReclamationPayload = {
-  actual: number,
-  date: string,
-  efficiency: number,
-  siteID: number,
-  status: string,
-  target: number,
+  actual: number;
+  date: string;
+  site_id: number;
+  target: number;
+};
+
+export type UpdateReclamationPayload = {
+  actual: number;
+  date: string;
+  site_id: number;
+  target: number;
+};
+
+export type ReclamationEditState = {
+  date: string;
+  realization: number;
+  target: number;
 };
 
 export type CreateLandOpeningPayload = {
@@ -194,6 +216,26 @@ export type LandOpeningEditState = {
   target: number;
 };
 
+export type CreateRehabDasPayload = {
+  actual: number;
+  date: string;
+  site_id: number;
+  target: number;
+};
+
+export type UpdateRehabDasPayload = {
+  actual: number;
+  date: string;
+  site_id: number;
+  target: number;
+};
+
+export type RehabDasEditState = {
+  date: string;
+  realization: number;
+  target: number;
+};
+
 export type UpdateProfilePayload = {
   birth_date?: string;
   city?: string;
@@ -205,7 +247,13 @@ export type UpdateProfilePayload = {
   password?: string;
   position?: string;
   postal_code?: string;
+  phone_number?: string;
   province?: string;
+};
+
+export type ChangePasswordPayload = {
+  old_password: string;
+  new_password: string;
 };
 
 export type AccountProfileData = {
@@ -253,9 +301,22 @@ export type CreateUserPayload = {
   lastname: string;
   nik: string;
   password: string;
+  phone_number?: string;
   position: string;
   role: string;
   username: string;
+};
+
+export type UpdateUserPayload = {
+  email: string;
+  firstname: string;
+  gender: string;
+  lastname: string;
+  nik: string;
+  position: string;
+  role: string;
+  username: string;
+  password?: string;
 };
 
 export type ProductionRecord = {
@@ -612,6 +673,60 @@ async function updateUploadedFile(
   });
 }
 
+function parseContentDispositionFilename(header: string | null): string | undefined {
+  if (!header) {
+    return undefined;
+  }
+
+  const utf8Match = /filename\*=UTF-8''([^;]+)/i.exec(header);
+  if (utf8Match?.[1]) {
+    try {
+      return decodeURIComponent(utf8Match[1].trim());
+    } catch {
+      return utf8Match[1].trim();
+    }
+  }
+
+  const quotedMatch = /filename="([^"]+)"/i.exec(header);
+  if (quotedMatch?.[1]) {
+    return quotedMatch[1].trim();
+  }
+
+  const plainMatch = /filename=([^;]+)/i.exec(header);
+  return plainMatch?.[1]?.trim().replace(/^"|"$/g, '');
+}
+
+function downloadFallbackFilename(title: string | undefined, id: string, prefix: string): string {
+  const base = (title?.trim() || `${prefix}-${id}`).replace(/[/\\?%*:|"<>]/g, '-');
+  return base.includes('.') ? base : `${base}.pdf`;
+}
+
+async function fetchUploadedFileAsFile(path: string, fallbackFilename: string): Promise<File> {
+  const response = await apiV1Fetch(path);
+  const blob = await response.blob();
+  const filename =
+    parseContentDispositionFilename(response.headers.get('Content-Disposition')) ?? fallbackFilename;
+  const type = blob.type && blob.type !== 'application/octet-stream' ? blob.type : 'application/pdf';
+  return new File([blob], filename, { type });
+}
+
+async function downloadUploadedFile(path: string, fallbackFilename: string): Promise<void> {
+  const file = await fetchUploadedFileAsFile(path, fallbackFilename);
+  const objectUrl = URL.createObjectURL(file);
+
+  try {
+    const anchor = document.createElement('a');
+    anchor.href = objectUrl;
+    anchor.download = file.name;
+    anchor.rel = 'noopener';
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
+}
+
 function normalizeProductionRecord(raw: unknown, siteName: string): ProductionRecord | undefined {
   const record = readRecord(raw);
   if (!record) {
@@ -740,13 +855,8 @@ export async function fetchCurrentAccountProfile(): Promise<AccountProfileData |
   }
 
   try {
-    const detail = await apiV1Json<BaseSuccessResponse<AuthMeData>>(
-      `user/${encodeURIComponent(profile.id)}/detail`
-    );
-    const detailedProfile = normalizeAccountProfile(unwrapApiData<AuthMeData>(detail));
-    if (detailedProfile && !detailedProfile.role) {
-      detailedProfile.role = profile.role;
-    }
+    const detail = await fetchUserDetail(profile.id);
+    const detailedProfile = detail ? mapUserDetailToAccountProfile(detail, profile.role) : undefined;
     return detailedProfile ? { ...profile, ...detailedProfile } : profile;
   } catch {
     return profile;
@@ -768,6 +878,8 @@ export async function listSitesBySupervisor(userId: string): Promise<SiteRecord[
   return extractArray(response).map(normalizeSite).filter((site): site is SiteRecord => site != null);
 }
 
+const USER_MANAGEMENT_LIST_LIMIT = 1000;
+
 export async function listUsers(page = 1, limit = 10): Promise<{ items: UserManagementRecord[]; total?: number }> {
   const query = new URLSearchParams({
     page: String(page),
@@ -783,11 +895,47 @@ export async function listUsers(page = 1, limit = 10): Promise<{ items: UserMana
   };
 }
 
+export async function fetchAllUsers(): Promise<UserManagementRecord[]> {
+  const { items } = await listUsers(1, USER_MANAGEMENT_LIST_LIMIT);
+  return items;
+}
+
 export async function listSupervisorUsers(): Promise<UserManagementRecord[]> {
   const response = await apiV1Json<unknown>('user/list-supervisors');
   return extractArray(response)
     .map(normalizeUserManagementRecord)
     .filter((user): user is UserManagementRecord => user != null);
+}
+
+export function mapUserDetailToAccountProfile(
+  detail: UserManagementRecord,
+  fallbackRole?: EUserRole
+): AccountProfileData | undefined {
+  const role = parseApiUserRole(detail.role) ?? fallbackRole;
+  if (!role) {
+    return undefined;
+  }
+
+  const city = detail.city ?? '';
+  const province = detail.province ?? '';
+
+  return {
+    id: detail.id,
+    role,
+    avatarUrl: detail.avatarUrl ?? '',
+    firstName: detail.firstName,
+    lastName: detail.lastName,
+    email: detail.email,
+    employeeId: detail.nik,
+    gender: detail.gender,
+    jobTitle: detail.position,
+    city,
+    province,
+    postalCode: detail.postalCode ?? '',
+    birthDate: detail.birthDate ?? '',
+    phone: detail.phone ?? '',
+    locationLabel: [city, province].filter(Boolean).join(', ') || '-',
+  };
 }
 
 export async function fetchUserDetail(userId: string): Promise<UserManagementRecord | undefined> {
@@ -802,10 +950,29 @@ export async function createUser(payload: CreateUserPayload): Promise<void> {
   });
 }
 
+export async function deleteUser(userId: string): Promise<void> {
+  await apiV1Json<unknown>(`user/${encodeURIComponent(userId)}`, {
+    method: 'DELETE',
+  });
+}
+
+export async function updateUser(userId: string, payload: UpdateUserPayload): Promise<void> {
+  await apiV1Json<unknown>(`user/${encodeURIComponent(userId)}/profile`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
+}
+
 export async function createSite(payload: CreateSitePayload): Promise<void> {
   await apiV1Json<unknown>('site/', {
     method: 'POST',
     body: JSON.stringify(payload),
+  });
+}
+
+export async function deleteSite(siteId: string): Promise<void> {
+  await apiV1Json<unknown>(`site/${encodeURIComponent(siteId)}`, {
+    method: 'DELETE',
   });
 }
 
@@ -831,7 +998,7 @@ export async function listLandOpeningBySite(siteId: string): Promise<ProductionR
 }
 
 export async function listProductionBySite(siteId: string): Promise<ProductionRecord[]> {
-  const response = await apiV1Json<unknown>(`production/${encodeURIComponent(siteId)}`);
+  const response = await apiV1Json<unknown>(`production/site/${encodeURIComponent(siteId)}`);
   return extractArray(response)
     .map((row) => normalizeProductionRecord(row, siteId))
     .filter((production): production is ProductionRecord => production != null);
@@ -841,6 +1008,22 @@ export async function createProduction(payload: CreateProductionPayload): Promis
   await apiV1Json<unknown>('production/', {
     method: 'POST',
     body: JSON.stringify(payload),
+  });
+}
+
+export async function updateProduction(
+  productionId: string,
+  payload: UpdateProductionPayload
+): Promise<void> {
+  await apiV1Json<unknown>(`production/${encodeURIComponent(productionId)}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function deleteProduction(productionId: string): Promise<void> {
+  await apiV1Json<unknown>(`production/${encodeURIComponent(productionId)}`, {
+    method: 'DELETE',
   });
 }
 
@@ -867,6 +1050,36 @@ export async function deleteLandOpening(landOpeningId: string): Promise<void> {
   });
 }
 
+export async function listRehabDasBySite(siteId: string): Promise<ProductionRecord[]> {
+  const response = await apiV1Json<unknown>(`rehab-das/site/${encodeURIComponent(siteId)}`);
+  return extractArray(response)
+    .map((row) => normalizeProductionRecord(row, siteId))
+    .filter((production): production is ProductionRecord => production != null);
+}
+
+export async function createRehabDas(payload: CreateRehabDasPayload): Promise<void> {
+  await apiV1Json<unknown>('rehab-das/', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updateRehabDas(
+  rehabDasId: string,
+  payload: UpdateRehabDasPayload
+): Promise<void> {
+  await apiV1Json<unknown>(`rehab-das/${encodeURIComponent(rehabDasId)}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function deleteRehabDas(rehabDasId: string): Promise<void> {
+  await apiV1Json<unknown>(`rehab-das/${encodeURIComponent(rehabDasId)}`, {
+    method: 'DELETE',
+  });
+}
+
 export async function createReclamation(payload: CreateReclamationPayload): Promise<void> {
   await apiV1Json<unknown>('reclamation/', {
     method: 'POST',
@@ -874,8 +1087,31 @@ export async function createReclamation(payload: CreateReclamationPayload): Prom
   });
 }
 
+export async function updateReclamation(
+  reclamationId: string,
+  payload: UpdateReclamationPayload
+): Promise<void> {
+  await apiV1Json<unknown>(`reclamation/${encodeURIComponent(reclamationId)}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function deleteReclamation(reclamationId: string): Promise<void> {
+  await apiV1Json<unknown>(`reclamation/${encodeURIComponent(reclamationId)}`, {
+    method: 'DELETE',
+  });
+}
+
 export async function updateUserProfile(userId: string, payload: UpdateProfilePayload): Promise<void> {
   await apiV1Json<unknown>(`user/${encodeURIComponent(userId)}/profile`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function changePassword(userId: string, payload: ChangePasswordPayload): Promise<void> {
+  await apiV1Json<unknown>(`auth/change-password/${encodeURIComponent(userId)}`, {
     method: 'PUT',
     body: JSON.stringify(payload),
   });
@@ -923,6 +1159,20 @@ export async function deleteDocument(documentId: string): Promise<void> {
   });
 }
 
+export async function fetchDocumentFile(documentId: string, title?: string): Promise<File> {
+  return fetchUploadedFileAsFile(
+    `document/download/${encodeURIComponent(documentId)}`,
+    downloadFallbackFilename(title, documentId, 'document')
+  );
+}
+
+export async function downloadDocument(documentId: string, title?: string): Promise<void> {
+  await downloadUploadedFile(
+    `document/download/${encodeURIComponent(documentId)}`,
+    downloadFallbackFilename(title, documentId, 'document')
+  );
+}
+
 export async function listReports(
   page = 1,
   limit = 1000
@@ -953,6 +1203,20 @@ export async function deleteReport(reportId: string): Promise<void> {
   await apiV1Json<unknown>(`report/${encodeURIComponent(reportId)}`, {
     method: 'DELETE',
   });
+}
+
+export async function fetchReportFile(reportId: string, title?: string): Promise<File> {
+  return fetchUploadedFileAsFile(
+    `report/download/${encodeURIComponent(reportId)}`,
+    downloadFallbackFilename(title, reportId, 'report')
+  );
+}
+
+export async function downloadReport(reportId: string, title?: string): Promise<void> {
+  await downloadUploadedFile(
+    `report/download/${encodeURIComponent(reportId)}`,
+    downloadFallbackFilename(title, reportId, 'report')
+  );
 }
 
 export async function listRegulations(
@@ -997,4 +1261,18 @@ export async function deleteRegulation(regulationId: string): Promise<void> {
   await apiV1Json<unknown>(`regulation/${encodeURIComponent(regulationId)}`, {
     method: 'DELETE',
   });
+}
+
+export async function fetchRegulationFile(regulationId: string, title?: string): Promise<File> {
+  return fetchUploadedFileAsFile(
+    `regulation/download/${encodeURIComponent(regulationId)}`,
+    downloadFallbackFilename(title, regulationId, 'regulation')
+  );
+}
+
+export async function downloadRegulation(regulationId: string, title?: string): Promise<void> {
+  await downloadUploadedFile(
+    `regulation/download/${encodeURIComponent(regulationId)}`,
+    downloadFallbackFilename(title, regulationId, 'regulation')
+  );
 }

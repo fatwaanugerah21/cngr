@@ -1,7 +1,6 @@
 import { createBrowserRouter, Navigate, RouterProvider } from 'react-router-dom';
 import AppLayout from './components/layout/AppLayout';
 import LoginPage from './pages/LoginPage';
-import DashboardPage from './pages/DashboardPage';
 import SiteDashboardPage from './pages/SiteDashboardPage';
 import ReportPage from './pages/ReportPage';
 import ReportFormPage from './pages/ReportFormPage';
@@ -19,16 +18,22 @@ import ProductionPage from './pages/ProductionPage';
 import ProductionFormPage from './pages/ProductionFormPage';
 import LandOpeningPage from './pages/LandOpeningPage';
 import LandOpeningFormPage from './pages/LandOpeningFormPage';
+import RehabDasPage from './pages/RehabDasPage';
+import RehabDasFormPage from './pages/RehabDasFormPage';
 import ReclamationPage from './pages/ReclamationPage';
 import ReclamationFormPage from './pages/ReclamationFormPage';
 import UserManagementPage from './pages/UserManagementPage';
 import UserManagementFormPage from './pages/UserManagementFormPage';
+import { COLORS } from './constants/colors';
 import AuthProvider from './lib/auth-provider';
 import { useAuth } from './lib/auth-context';
 
 function LoadingScreen() {
   return (
-    <div className="flex min-h-screen items-center justify-center">
+    <div
+      className="flex min-h-screen items-center justify-center"
+      style={{ backgroundColor: COLORS.backgroundGray }}
+    >
       <p className="text-gray-500">Memuat sesi...</p>
     </div>
   );
@@ -51,7 +56,7 @@ function LoginRoute() {
     return <LoadingScreen />;
   }
 
-  return isAuthenticated ? <Navigate to="/dashboard" replace /> : <LoginPage />;
+  return isAuthenticated ? <Navigate to="/site-management" replace /> : <LoginPage />;
 }
 
 const router = createBrowserRouter([
@@ -63,8 +68,8 @@ const router = createBrowserRouter([
     path: '/',
     element: <ProtectedRoute />,
     children: [
-      { index: true, element: <Navigate to="/dashboard" replace /> },
-      { path: 'dashboard', element: <DashboardPage /> },
+      { index: true, element: <Navigate to="/site-management" replace /> },
+      { path: 'dashboard', element: <Navigate to="/site-management" replace /> },
       { path: 'site-dashboard', element: <SiteDashboardPage /> },
       { path: 'site-management', element: <SiteManagementPage /> },
       { path: 'user-management', element: <UserManagementPage /> },
@@ -72,11 +77,16 @@ const router = createBrowserRouter([
       { path: 'user-management/edit/:id', element: <UserManagementFormPage /> },
       { path: 'production', element: <ProductionPage /> },
       { path: 'production/add', element: <ProductionFormPage /> },
+      { path: 'production/edit/:id', element: <ProductionFormPage /> },
       { path: 'land-opening', element: <LandOpeningPage /> },
       { path: 'land-opening/add', element: <LandOpeningFormPage /> },
       { path: 'land-opening/edit/:id', element: <LandOpeningFormPage /> },
+      { path: 'rehab-das', element: <RehabDasPage /> },
+      { path: 'rehab-das/add', element: <RehabDasFormPage /> },
+      { path: 'rehab-das/edit/:id', element: <RehabDasFormPage /> },
       { path: 'reclamation', element: <ReclamationPage /> },
       { path: 'reclamation/add', element: <ReclamationFormPage /> },
+      { path: 'reclamation/edit/:id', element: <ReclamationFormPage /> },
       { path: 'report', element: <ReportPage /> },
       { path: 'report/upload', element: <ReportFormPage /> },
       { path: 'report/edit/:id', element: <ReportFormPage /> },
@@ -109,7 +119,7 @@ function AuthFallbackRedirect() {
     return <LoadingScreen />;
   }
 
-  const to = isAuthenticated ? '/dashboard' : '/login';
+  const to = isAuthenticated ? '/site-management' : '/login';
   return <Navigate to={to} replace />;
 }
 

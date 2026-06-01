@@ -1,11 +1,13 @@
 import type { ReactNode } from 'react';
 import { COLORS } from '../../constants/colors';
+import { formatNumberDisplay, formatTableDate } from '../../lib/formatters';
 import DeleteRowIcon from '../../icons/delete-row.icon';
 import DownloadIcon from '../../icons/download.icon';
 import PencilIcon from '../../icons/pencil.icon';
 import IconButton from './IconButton';
 
-const HEADER_ROW_BACKGROUND = `color-mix(in srgb, ${COLORS.primary} 12%, ${COLORS.white})`;
+const TABLE_HEADER_BACKGROUND = '#F0F7FF';
+const TABLE_HEADER_TEXT = '#006FFF';
 const DEFAULT_EMPTY_MESSAGE = 'Tidak ada data untuk ditampilkan.';
 
 export type DataTableHeaderVariant = 'primary' | 'default';
@@ -19,7 +21,7 @@ interface DataTableColumnBase {
   header: ReactNode;
   /** Column header label color. Defaults to primary to match document table spec. */
   headerVariant?: DataTableHeaderVariant;
-  /** When true, shows a sort affordance (design); wire `onColumnSort` to handle clicks. */
+  /** Reserved for future column sorting. */
   sortable?: boolean;
 }
 
@@ -28,6 +30,20 @@ export type DataTableColumnDef<Row extends Record<string, unknown>> =
     kind: 'text';
     accessorKey: StringKey<Row>;
     render?: (row: Row) => ReactNode;
+    tone?: 'primary' | 'secondary';
+    /** @default 'normal' */
+    fontWeight?: 'normal' | 'semibold';
+  })
+  | (DataTableColumnBase & {
+    kind: 'number';
+    accessorKey: StringKey<Row>;
+    tone?: 'primary' | 'secondary';
+    /** @default 'normal' */
+    fontWeight?: 'normal' | 'semibold';
+  })
+  | (DataTableColumnBase & {
+    kind: 'date';
+    accessorKey: StringKey<Row>;
     tone?: 'primary' | 'secondary';
     /** @default 'normal' */
     fontWeight?: 'normal' | 'semibold';
@@ -58,8 +74,6 @@ export interface DataTableProps<Row extends Record<string, unknown>> {
   data: Row[];
   getRowId: (row: Row) => string;
   onRowAction?: (action: DataTableBuiltinAction, row: Row) => void;
-  /** Called when a column header with `sortable: true` is activated. */
-  onColumnSort?: (columnId: string) => void;
   /** Renders below the grid with a top divider (e.g. pagination). */
   footer?: ReactNode;
   minWidth?: number | string;
@@ -71,7 +85,7 @@ export interface DataTableProps<Row extends Record<string, unknown>> {
 
 function headerColor(variant: DataTableHeaderVariant | undefined) {
   if (variant === 'default') return COLORS.textPrimary;
-  return COLORS.primary;
+  return TABLE_HEADER_TEXT;
 }
 
 function getString<Row extends Record<string, unknown>>(row: Row, key: StringKey<Row>): string {
@@ -80,21 +94,16 @@ function getString<Row extends Record<string, unknown>>(row: Row, key: StringKey
   return String(value);
 }
 
-function SortGlyph() {
-  return (
-    <svg
-      width="12"
-      height="12"
-      viewBox="0 0 12 12"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      className="shrink-0"
-      aria-hidden
-    >
-      <path d="M3 4.5L6 1.5L9 4.5" stroke={COLORS.textSecondary} strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M3 7.5L6 10.5L9 7.5" stroke={COLORS.textSecondary} strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
+function getNumber<Row extends Record<string, unknown>>(row: Row, key: StringKey<Row>): number | null {
+  const value = row[key];
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : null;
+  }
+  if (typeof value === 'string' && value.trim() !== '') {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
 }
 
 function PdfGlyph() {
@@ -168,6 +177,33 @@ function renderCell<Row extends Record<string, unknown>>(
         </span>
       );
     }
+    case 'number': {
+      const numericValue = getNumber(row, column.accessorKey);
+      const text = formatNumberDisplay(numericValue);
+      const isSecondary = column.tone === 'secondary';
+      const weightClass = column.fontWeight === 'semibold' ? 'font-semibold' : 'font-normal';
+      return (
+        <span
+          className={`text-sm ${weightClass}`}
+          style={{ color: isSecondary ? COLORS.textSecondary : COLORS.textPrimary }}
+        >
+          {text}
+        </span>
+      );
+    }
+    case 'date': {
+      const text = formatTableDate(getString(row, column.accessorKey));
+      const isSecondary = column.tone === 'secondary';
+      const weightClass = column.fontWeight === 'semibold' ? 'font-semibold' : 'font-normal';
+      return (
+        <span
+          className={`text-sm ${weightClass}`}
+          style={{ color: isSecondary ? COLORS.textSecondary : COLORS.textPrimary }}
+        >
+          {text}
+        </span>
+      );
+    }
     case 'person': {
       const name = getString(row, column.accessorKey);
       const initial = name.charAt(0) || '?';
@@ -220,11 +256,11 @@ function renderCell<Row extends Record<string, unknown>>(
     }
     case 'actions':
       return (
-        <div className="flex items-center gap-2 sm:gap-3">
+        <div className="flex select-none items-center gap-2 sm:gap-3">
           {column.actions.map((action) => (
             <IconButton
               key={action}
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full p-0 transition-colors hover:bg-gray-100"
+              className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-full p-0 transition-colors hover:bg-gray-100"
               icon={renderBuiltinActionIcon(action)}
               aria-label={ACTION_ARIA[action]}
               onClick={onRowAction ? () => onRowAction(action, row) : undefined}
@@ -244,7 +280,6 @@ export default function DataTable<Row extends Record<string, unknown>>({
   data,
   getRowId,
   onRowAction,
-  onColumnSort,
   footer,
   minWidth = 720,
   wrapperClassName = '',
@@ -266,29 +301,20 @@ export default function DataTable<Row extends Record<string, unknown>>({
               className="border-b"
               style={{
                 borderColor: COLORS.border,
-                backgroundColor: HEADER_ROW_BACKGROUND,
+                backgroundColor: TABLE_HEADER_BACKGROUND,
               }}
             >
               {columns.map((col) => (
-                <th key={col.id} className="px-6 py-4 text-left align-middle">
-                  {col.sortable ? (
-                    <button
-                      type="button"
-                      className="inline-flex max-w-full items-center gap-2 rounded text-left transition-opacity hover:opacity-80"
-                      style={{ color: headerColor(col.headerVariant) }}
-                      onClick={() => onColumnSort?.(col.id)}
-                    >
-                      <span className="text-xs font-bold uppercase tracking-wide">{col.header}</span>
-                      <SortGlyph />
-                    </button>
-                  ) : (
-                    <span
-                      className="text-xs font-bold uppercase tracking-wide"
-                      style={{ color: headerColor(col.headerVariant) }}
-                    >
-                      {col.header}
-                    </span>
-                  )}
+                <th
+                  key={col.id}
+                  className={`px-6 py-4 text-left align-middle${col.kind === 'actions' ? ' select-none' : ''}`}
+                >
+                  <span
+                    className="text-xs font-bold uppercase tracking-wide"
+                    style={{ color: headerColor(col.headerVariant) }}
+                  >
+                    {col.header}
+                  </span>
                 </th>
               ))}
             </tr>
@@ -317,7 +343,10 @@ export default function DataTable<Row extends Record<string, unknown>>({
                   }}
                 >
                   {columns.map((col) => (
-                    <td key={col.id} className="px-6 py-4 align-middle">
+                    <td
+                      key={col.id}
+                      className={`px-6 py-4 align-middle${col.kind === 'actions' ? ' select-none' : ''}`}
+                    >
                       {renderCell(col, row, onRowAction)}
                     </td>
                   ))}

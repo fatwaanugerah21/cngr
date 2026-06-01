@@ -12,8 +12,8 @@ import {
   listSites,
   listSitesBySupervisor,
   listSupervisorUsers,
+  type UserManagementRecord,
 } from '../lib/cngr-api';
-import { useUserDirectory } from '../lib/user-directory-context';
 import { useAuth } from '../lib/auth-context';
 
 const RESULTS_PER_PAGE = 9;
@@ -163,11 +163,17 @@ export default function SiteManagementPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | undefined>();
   const [isCreating, setIsCreating] = useState(false);
+  const [supervisors, setSupervisors] = useState<UserManagementRecord[]>([]);
   const { setSelectedSite } = useSite();
-  const { setUsers, users } = useUserDirectory();
   const { user: currentUser } = useAuth();
   const currentRole = currentUser?.role ?? EUserRole.ADMIN;
   const currentUserId = currentUser?.id;
+
+  useEffect(() => {
+    if (currentRole === EUserRole.SUPERVISOR) {
+      navigate('/site-dashboard', { replace: true });
+    }
+  }, [currentRole, navigate]);
 
   useEffect(() => {
     let cancelled = false;
@@ -193,7 +199,7 @@ export default function SiteManagementPage() {
         }
 
         if (supervisorResult.status === 'fulfilled') {
-          setUsers(supervisorResult.value);
+          setSupervisors(supervisorResult.value);
         }
       } catch (err) {
         if (!cancelled) {
@@ -211,11 +217,18 @@ export default function SiteManagementPage() {
     return () => {
       cancelled = true;
     };
-  }, [currentRole, currentUserId, setUsers]);
+  }, [currentRole, currentUserId]);
 
   useEffect(() => {
     setCurrentPage(1);
   }, [search, sites]);
+
+  const availableSupervisors = useMemo(() => {
+    const assignedSupervisorIds = new Set(
+      sites.map((site) => site.supervisorId.trim()).filter((id) => id !== '')
+    );
+    return supervisors.filter((supervisor) => !assignedSupervisorIds.has(supervisor.id));
+  }, [supervisors, sites]);
 
   const filteredSites = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -309,11 +322,15 @@ export default function SiteManagementPage() {
         supervisor_id: supervisorId,
       });
 
-      const refreshedSites = currentRole === EUserRole.SUPERVISOR && currentUserId
-        ? await listSitesBySupervisor(currentUserId)
-        : await listSites();
+      const [refreshedSites, refreshedSupervisors] = await Promise.all([
+        currentRole === EUserRole.SUPERVISOR && currentUserId
+          ? listSitesBySupervisor(currentUserId)
+          : listSites(),
+        listSupervisorUsers(),
+      ]);
 
       setSites(refreshedSites);
+      setSupervisors(refreshedSupervisors);
       setSearch('');
       setCreateOpen(false);
       setError(undefined);
@@ -337,7 +354,7 @@ export default function SiteManagementPage() {
     <div className="flex flex-col">
       <PageHeader title="Manajemen Site" />
 
-      <div className="flex flex-col p-10" style={{ backgroundColor: COLORS.backgroundGray }}>
+      <div className="flex flex-col p-10">
         <div className="mb-8  flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h1 className="text-lg font-bold" style={{ color: COLORS.textPrimary }}>
@@ -431,7 +448,7 @@ export default function SiteManagementPage() {
         open={createOpen}
         onOpenChange={setCreateOpen}
         onSubmit={handleCreateSubmit}
-        supervisors={users.filter((user) => user.role === EUserRole.SUPERVISOR && !pageRows.some((site) => site.supervisorId === user.id))}
+        supervisors={availableSupervisors}
       />
     </div>
   );
