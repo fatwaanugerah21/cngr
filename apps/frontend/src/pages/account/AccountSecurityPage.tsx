@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useOutletContext } from 'react-router-dom';
+import type { AccountAreaOutletContext } from '../../components/layout/AccountAreaLayout';
 import { AccountSectionCard } from '../../components/account';
 import { FormTextField } from '../../components/forms';
 import { changePassword } from '../../lib/cngr-api';
@@ -7,13 +8,12 @@ import { useAuth } from '../../lib/auth-context';
 
 export default function AccountSecurityPage() {
   const navigate = useNavigate();
+  const { setIsSubmitting } = useOutletContext<AccountAreaOutletContext>();
   const { user } = useAuth();
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [formError, setFormError] = useState<string | undefined>();
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!user?.id) {
@@ -89,7 +89,6 @@ export default function AccountSecurityPage() {
           />
         </div>
       </AccountSectionCard>
-      {isSubmitting ? <p className="text-sm text-gray-500">Menyimpan perubahan...</p> : null}
     </form>
   );
 }

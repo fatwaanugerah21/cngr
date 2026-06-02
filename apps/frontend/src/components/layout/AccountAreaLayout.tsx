@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '../ui';
 import { AccountSubNav, ProfileCompletionBar } from '../account';
@@ -53,6 +54,10 @@ function buildBreadcrumb(pathname: string): BreadcrumbItem[] {
   ];
 }
 
+export type AccountAreaOutletContext = {
+  setIsSubmitting: (submitting: boolean) => void;
+};
+
 function LoadingState() {
   return (
     <div className="flex min-h-screen items-center justify-center px-6">
@@ -67,10 +72,15 @@ export default function AccountAreaLayout() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const { user: profile, isInitializing } = useAuth();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const isUserHome = pathname === '/account/user';
   const isUserEdit = pathname === '/account/user/edit';
   const isSecurity = pathname === '/account/security';
+
+  useEffect(() => {
+    setIsSubmitting(false);
+  }, [pathname]);
 
   const profileCompletion = profile ? computeProfileCompletion(profile) : 0;
 
@@ -93,6 +103,7 @@ export default function AccountAreaLayout() {
           type="button"
           variant="outline"
           size="sm"
+          disabled={isSubmitting}
           onClick={() => navigate(isSecurity ? '/account/user' : '/account/user')}
         >
           Kembali
@@ -101,9 +112,10 @@ export default function AccountAreaLayout() {
           type="submit"
           variant="submit"
           size="sm"
+          disabled={isSubmitting}
           form={isUserEdit ? 'account-edit-form' : 'account-security-form'}
         >
-          Simpan Data
+          {isSubmitting ? 'Menyimpan…' : 'Simpan Data'}
         </Button>
       </div>
     ) : null;
@@ -122,7 +134,7 @@ export default function AccountAreaLayout() {
           <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
             <AccountSubNav />
             <div className="min-w-0 flex-1 space-y-6">
-              <Outlet />
+              <Outlet context={{ setIsSubmitting } satisfies AccountAreaOutletContext} />
             </div>
           </div>
         </div>

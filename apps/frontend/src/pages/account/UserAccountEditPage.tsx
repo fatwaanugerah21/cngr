@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useOutletContext } from 'react-router-dom';
+import type { AccountAreaOutletContext } from '../../components/layout/AccountAreaLayout';
 import { AccountAvatarEditor, AccountSectionCard } from '../../components/account';
 import { FormSelectField, FormTextField } from '../../components/forms';
 import { type AccountProfileData, updateUserProfile, uploadUserProfileImage } from '../../lib/cngr-api';
@@ -20,6 +21,7 @@ function toDateInputValue(value: string): string {
 
 export default function UserAccountEditPage() {
   const navigate = useNavigate();
+  const { setIsSubmitting } = useOutletContext<AccountAreaOutletContext>();
   const { user: currentUser, isInitializing, refreshCurrentUser } = useAuth();
 
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
@@ -36,7 +38,6 @@ export default function UserAccountEditPage() {
   const [birthDate, setBirthDate] = useState('');
   const [phone, setPhone] = useState('');
   const [isLoading, setIsLoading] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | undefined>();
 
   useEffect(() => {
@@ -112,6 +113,15 @@ export default function UserAccountEditPage() {
 
   return (
     <form id="account-edit-form" className="space-y-6" onSubmit={handleSubmit}>
+      {formError ? (
+        <p
+          className="rounded-lg px-3 py-2 text-sm"
+          style={{ backgroundColor: '#FEF2F2', color: '#B91C1C' }}
+          role="alert"
+        >
+          {formError}
+        </p>
+      ) : null}
       <AccountSectionCard
         step={1}
         title="Informasi pribadi"
@@ -160,8 +170,6 @@ export default function UserAccountEditPage() {
           <FormTextField label="No. telepon" value={phone} onChange={(ev) => setPhone(ev.target.value)} />
         </div>
       </AccountSectionCard>
-      {formError ? <p className="text-sm text-red-600">{formError}</p> : null}
-      {isSubmitting ? <p className="text-sm text-gray-500">Menyimpan perubahan...</p> : null}
     </form>
   );
 }

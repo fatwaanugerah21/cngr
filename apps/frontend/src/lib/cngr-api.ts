@@ -786,7 +786,15 @@ function normalizeAccountProfile(raw: unknown): AccountProfileData | undefined {
   const postalCode = firstString(record.postal_code, record.postalCode);
   const birthDate = firstString(record.birth_date, record.birthDate);
   const phone = firstString(record.phone_number, record.phone, record.mobile, record.telephone);
-  const avatarUrl = firstString(record.avatarUrl, record.avatar_url, record.photo, record.profile_image, record.profileImage);
+  const avatarUrl = firstString(
+    record.avatarUrl,
+    record.avatar_url,
+    record.photo,
+    record.profile_image,
+    record.profileImage,
+    record.profile_picture,
+    record.profilePicture
+  );
   const role = parseApiUserRole(record.role);
   const siteIdRaw = firstNumber(record.site_id, record.siteId, record.siteID);
   const siteId = siteIdRaw !== undefined && siteIdRaw > 0 ? String(siteIdRaw) : undefined;
@@ -834,7 +842,15 @@ function normalizeUserManagementRecord(raw: unknown): UserManagementRecord | und
   const email = firstString(record.email);
   const gender = firstString(record.gender);
   const position = firstString(record.position, record.jobTitle, record.job_title);
-  const avatarUrl = firstString(record.avatarUrl, record.avatar_url, record.photo, record.profile_image);
+  const avatarUrl = firstString(
+    record.avatarUrl,
+    record.avatar_url,
+    record.photo,
+    record.profile_image,
+    record.profileImage,
+    record.profile_picture,
+    record.profilePicture
+  );
 
   return {
     id,
@@ -852,7 +868,7 @@ function normalizeUserManagementRecord(raw: unknown): UserManagementRecord | und
     province: firstString(record.province) || undefined,
     postalCode: firstString(record.postal_code, record.postalCode) || undefined,
     birthDate: firstDateString(record.birth_date, record.birthDate) || undefined,
-    phone: firstString(record.phone, record.mobile, record.telephone) || undefined,
+    phone: firstString(record.phone_number, record.phone, record.mobile, record.telephone) || undefined,
   };
 }
 

@@ -4,6 +4,19 @@ export enum EUserRole {
   DIRECTOR = 'DIRECTOR',
 }
 
+export function formatUserRoleLabel(role: EUserRole): string {
+  switch (role) {
+    case EUserRole.ADMIN:
+      return 'Admin';
+    case EUserRole.SUPERVISOR:
+      return 'Supervisor';
+    case EUserRole.DIRECTOR:
+      return 'Director';
+    default:
+      return role;
+  }
+}
+
 export function parseApiUserRole(raw: unknown): EUserRole | undefined {
   const normalized = typeof raw === 'string' ? raw.trim().toUpperCase() : '';
   if (normalized === EUserRole.ADMIN) {
