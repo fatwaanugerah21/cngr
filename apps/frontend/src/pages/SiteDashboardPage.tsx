@@ -546,19 +546,6 @@ function CategoryTrendCharts({
               />
               <Tooltip content={<ChartTooltip />} />
               <Legend wrapperStyle={{ fontSize: 11 }} />
-              {!isDailyTrendView ? (
-                <Bar
-                  dataKey="clickHelper"
-                  fill="transparent"
-                  stroke="none"
-                  barSize={40}
-                  minPointSize={24}
-                  cursor="pointer"
-                  legendType="none"
-                  isAnimationActive={false}
-                  onClick={handleMonthBarClick}
-                />
-              ) : null}
               <Bar
                 dataKey="target"
                 name="Target"

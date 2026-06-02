@@ -71,7 +71,7 @@ export default function UserAccountEditPage() {
         await uploadUserProfileImage(profile.id, avatarFile);
       }
 
-      const resp = await updateUserProfile(profile.id, {
+      await updateUserProfile(profile.id, {
         firstname: firstName.trim(),
         lastname: lastName.trim(),
         email: email.trim(),
@@ -85,8 +85,6 @@ export default function UserAccountEditPage() {
         birth_date: birthDate ? new Date(birthDate).toISOString() : undefined,
       });
 
-      console.log("Resp: ", resp);
-      
       await refreshCurrentUser();
       navigate('/account/user');
     } catch (err) {

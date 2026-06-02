@@ -752,7 +752,7 @@ function normalizeProductionRecord(raw: unknown, siteName: string): ProductionRe
   const efficiency = firstNumber(record.efficiency);
   const efficiencyValue =
     efficiency != null
-      ? `${efficiency <= 1 ? Math.round(efficiency * 100) : Math.round(efficiency)}%`
+      ? `${efficiency.toFixed(0)}%`
       : target > 0
         ? `${Math.round((actual / target) * 100)}%`
         : '0%';
