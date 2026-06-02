@@ -22,6 +22,17 @@ export function hasAdminAccess(role: EUserRole | undefined): boolean {
   return role === EUserRole.ADMIN || role === EUserRole.DIRECTOR;
 }
 
+export function hasSupervisorAssignedSite(siteId: string | undefined): boolean {
+  return (siteId?.trim() ?? '') !== '';
+}
+
+export function isSupervisorWithoutAssignedSite(
+  role: EUserRole | undefined,
+  siteId: string | undefined
+): boolean {
+  return role === EUserRole.SUPERVISOR && !hasSupervisorAssignedSite(siteId);
+}
+
 export function parseApiUserRole(raw: unknown): EUserRole | undefined {
   const normalized = typeof raw === 'string' ? raw.trim().toUpperCase() : '';
   if (normalized === EUserRole.ADMIN) {

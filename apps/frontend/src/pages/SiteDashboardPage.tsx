@@ -21,7 +21,12 @@ import { type SiteDashboardKpi, type StatusHistoryRow } from '../data/site-dashb
 import { useAuth } from '../lib/auth-context';
 import { deleteSite, fetchSiteDetail } from '../lib/cngr-api';
 import type { SiteRecord } from '../data/sites-dummy';
-import { hasAdminAccess, resolveSelectedSiteDisplayName } from '../lib/navigation-session';
+import SupervisorNoSiteBlockedContent from '../components/layout/SupervisorNoSiteBlockedContent';
+import {
+  hasAdminAccess,
+  isSupervisorWithoutAssignedSite,
+  resolveSelectedSiteDisplayName,
+} from '../lib/navigation-session';
 import {
   DASHBOARD_VIEW_OPTIONS,
   EMPTY_SITE_DASHBOARD,
@@ -310,7 +315,13 @@ function statusDotColor(status: StatusHistoryRow['status']): string {
   return '#EF4444';
 }
 
-function SiteDashboardHero({ siteName }: { siteName: string }) {
+function SiteDashboardHero({
+  siteName,
+  showNoSiteMessage = false,
+}: {
+  siteName: string;
+  showNoSiteMessage?: boolean;
+}) {
   const { user } = useAuth();
   const displayName = user
     ? [user.firstName, user.lastName].filter(Boolean).join(' ').trim() || 'Akun pengguna'
@@ -323,11 +334,23 @@ function SiteDashboardHero({ siteName }: { siteName: string }) {
       <div className="absolute inset-0" style={{ backgroundColor: 'rgba(0, 0, 0, 0.72)' }} />
       <div className="relative flex flex-col gap-6 px-8 py-8 sm:flex-row sm:items-center sm:justify-between">
         <div className="max-w-2xl">
-          <h1 className="text-2xl font-bold text-white">Dashboard {siteName}</h1>
-          <p className="mt-2 text-sm leading-relaxed text-white/80">
-            Selamat datang di menu dashboard {siteName.toLowerCase()}, Anda dapat melakukan monitoring data
-            dashboard {siteName.toLowerCase()} site
-          </p>
+          <h1 className="text-2xl font-bold text-white">
+            {showNoSiteMessage ? 'Dashboard' : `Dashboard ${siteName}`}
+          </h1>
+          {showNoSiteMessage ? (
+            <p
+              className="mt-4 inline-block rounded-lg px-4 py-2.5 text-sm font-medium text-white"
+              style={{ backgroundColor: 'rgba(255, 255, 255, 0.12)', border: '1px solid rgba(255, 255, 255, 0.25)' }}
+              role="status"
+            >
+              Anda tidak memiliki site
+            </p>
+          ) : (
+            <p className="mt-2 text-sm leading-relaxed text-white/80">
+              Selamat datang di menu dashboard {siteName.toLowerCase()}, Anda dapat melakukan monitoring data
+              dashboard {siteName.toLowerCase()} site
+            </p>
+          )}
         </div>
         <div className="flex shrink-0 items-center gap-3">
           <div
@@ -652,6 +675,7 @@ export default function SiteDashboardPage() {
   const [deleteError, setDeleteError] = useState<string | undefined>();
 
   const isAdmin = hasAdminAccess(user?.role);
+  const isSupervisorWithoutSite = isSupervisorWithoutAssignedSite(user?.role, user?.siteId);
 
   const siteName = resolveSelectedSiteDisplayName(selectedSite, siteDetail?.name);
 
@@ -826,11 +850,8 @@ export default function SiteDashboardPage() {
     }
   };
 
-  return (
-    <div className="flex min-h-full flex-col">
-      <SiteDashboardHero siteName={siteName} />
-
-      <div className="flex flex-col gap-6 p-6 lg:p-8">
+  const dashboardBody = (
+    <div className="flex flex-col gap-6 p-6 lg:p-8">
         {dashboardError ? (
           <p className="rounded-lg border px-4 py-3 text-sm" style={{ borderColor: '#FECACA', color: '#DC2626' }}>
             {dashboardError}
@@ -916,7 +937,18 @@ export default function SiteDashboardPage() {
             />
           )}
         </div>
-      </div>
+    </div>
+  );
+
+  return (
+    <div className="flex min-h-full flex-col">
+      <SiteDashboardHero siteName={siteName} showNoSiteMessage={isSupervisorWithoutSite} />
+
+      {isSupervisorWithoutSite ? (
+        <SupervisorNoSiteBlockedContent>{dashboardBody}</SupervisorNoSiteBlockedContent>
+      ) : (
+        dashboardBody
+      )}
 
       <ConfirmationModalComponent
         open={deleteOpen}

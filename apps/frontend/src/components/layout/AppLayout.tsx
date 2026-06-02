@@ -4,6 +4,7 @@ import SiteProvider from '../../lib/site-provider';
 import UserDirectoryProvider from '../../lib/user-directory-provider';
 import RequireAdminSelectedSite from './RequireAdminSelectedSite';
 import Sidebar from './Sidebar';
+import SupervisorNoSiteContentGate from './SupervisorNoSiteContentGate';
 
 export default function AppLayout() {
   return (
@@ -16,7 +17,9 @@ export default function AppLayout() {
             className="ml-64 flex min-h-screen flex-1 flex-col overflow-auto"
             style={{ backgroundColor: COLORS.backgroundGray }}
           >
-            <Outlet />
+            <SupervisorNoSiteContentGate>
+              <Outlet />
+            </SupervisorNoSiteContentGate>
           </main>
         </div>
       </UserDirectoryProvider>
