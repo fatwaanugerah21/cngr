@@ -50,7 +50,6 @@ export default function ConfirmationModalComponent({
         <div className="flex w-full gap-5">
           <Button
             type="button"
-            variant="ghost"
             size="md"
             className="flex-1"
             onClick={() => onOpenChange(false)}
