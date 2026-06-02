@@ -5,7 +5,7 @@ import CreateSiteModal, { type CreateSitePayload } from '../components/site-mana
 import { Button, SearchInput } from '../components/ui';
 import { COLORS } from '../constants/colors';
 import { type SiteRecord } from '../data/sites-dummy';
-import { EUserRole } from '../lib/navigation-session';
+import { EUserRole, hasAdminAccess } from '../lib/navigation-session';
 import { useSite } from '../lib/site-context';
 import {
   createSite,
@@ -343,13 +343,13 @@ export default function SiteManagementPage() {
   };
 
   const handleSelectSite = (site: SiteRecord) => {
-    if (currentRole !== EUserRole.ADMIN) return;
+    if (!hasAdminAccess(currentRole)) return;
 
     setSelectedSite({ id: site.id, name: site.name });
     navigate('/site-dashboard');
   };
 
-  const canViewDashboard = currentRole === EUserRole.ADMIN;
+  const canViewDashboard = hasAdminAccess(currentRole);
   return (
     <div className="flex flex-col">
       <PageHeader title="Manajemen Site" />

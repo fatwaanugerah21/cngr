@@ -19,6 +19,7 @@ import {
   EUserRole,
   getStoredSelectedSite,
   getStoredUserRole,
+  hasAdminAccess,
   type SelectedSite,
 } from '../../lib/navigation-session';
 import { useSite } from '../../lib/site-context';
@@ -102,7 +103,7 @@ function navGroupsIncludeLogout(navGroups: NavGroupDef[]): boolean {
 }
 
 function getSidebarNavGroups(role: EUserRole, isInAdminMainNavRoute: boolean): NavGroupDef[] {
-  if ((role === EUserRole.ADMIN || role === EUserRole.DIRECTOR) && isInAdminMainNavRoute) {
+  if (hasAdminAccess(role) && isInAdminMainNavRoute) {
     return adminMainNavGroups;
   }
 
@@ -237,7 +238,7 @@ export default function Sidebar() {
               {navGroups.map((group) => (
                 <NavGroup key={group.title} {...group} />
               ))}
-              {role === EUserRole.ADMIN && selectedSite != null && !isInAdminMainNavRoute ? (
+              {hasAdminAccess(role) && selectedSite != null && !isInAdminMainNavRoute ? (
                 <div className="mt-8">
                   <button
                     type="button"

@@ -21,7 +21,7 @@ import { type SiteDashboardKpi, type StatusHistoryRow } from '../data/site-dashb
 import { useAuth } from '../lib/auth-context';
 import { deleteSite, fetchSiteDetail } from '../lib/cngr-api';
 import type { SiteRecord } from '../data/sites-dummy';
-import { EUserRole, resolveSelectedSiteDisplayName } from '../lib/navigation-session';
+import { hasAdminAccess, resolveSelectedSiteDisplayName } from '../lib/navigation-session';
 import {
   DASHBOARD_VIEW_OPTIONS,
   EMPTY_SITE_DASHBOARD,
@@ -651,7 +651,7 @@ export default function SiteDashboardPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | undefined>();
 
-  const isAdmin = user?.role === EUserRole.ADMIN;
+  const isAdmin = hasAdminAccess(user?.role);
 
   const siteName = resolveSelectedSiteDisplayName(selectedSite, siteDetail?.name);
 

@@ -17,6 +17,11 @@ export function formatUserRoleLabel(role: EUserRole): string {
   }
 }
 
+/** ADMIN and DIRECTOR share the same application access. */
+export function hasAdminAccess(role: EUserRole | undefined): boolean {
+  return role === EUserRole.ADMIN || role === EUserRole.DIRECTOR;
+}
+
 export function parseApiUserRole(raw: unknown): EUserRole | undefined {
   const normalized = typeof raw === 'string' ? raw.trim().toUpperCase() : '';
   if (normalized === EUserRole.ADMIN) {
