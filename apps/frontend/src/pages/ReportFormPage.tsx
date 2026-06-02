@@ -122,11 +122,13 @@ export default function ReportFormPage() {
       if (isEdit && id) {
         await updateReport(id, {
           title: payload.title,
+          description: payload.description,
           file: payload.file,
         });
       } else if (selectedSite?.id && payload.file) {
         await createReport({
           title: payload.title,
+          description: payload.description,
           file: payload.file,
           siteId: selectedSite.id,
         });

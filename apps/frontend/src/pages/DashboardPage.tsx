@@ -49,7 +49,7 @@ function KpiCard({
     >
       <div className="flex flex-1 items-start gap-6">
         {/* Left: Gauge chart */}
-        <div className="relative h-40 w-40 shrink-0">
+        <div className="recharts-no-focus-outline relative h-40 w-40 shrink-0">
           <ResponsiveContainer width="100%" height="100%">
             <RadialBarChart
               cx="50%"
@@ -60,6 +60,8 @@ function KpiCard({
               data={gaugeData}
               startAngle={180}
               endAngle={0}
+              style={{ outline: 'none' }}
+              tabIndex={-1}
             >
               <RadialBar
                 dataKey="value"
@@ -111,7 +113,7 @@ function ChartCard({
       <h3 className="mb-4 text-xs font-semibold uppercase tracking-wider" style={{ color: COLORS.textSecondary }}>
         {title}
       </h3>
-      <div className="min-h-64 flex-1" style={{ height: 256 }}>
+      <div className="recharts-no-focus-outline min-h-64 flex-1" style={{ height: 256 }}>
         {children}
       </div>
     </div>
@@ -136,7 +138,12 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <ChartCard title="Produksi GWh Patuha">
             <ResponsiveContainer width="100%" height={256}>
-              <BarChart data={PRODUKSI_PATUHA} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+              <BarChart
+                data={PRODUKSI_PATUHA}
+                margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
+                style={{ outline: 'none' }}
+                tabIndex={-1}
+              >
                 <CartesianGrid strokeDasharray="3 3" stroke={COLORS.border} />
                 <XAxis dataKey="month" tick={{ fontSize: 10 }} stroke={COLORS.textSecondary} />
                 <YAxis tick={{ fontSize: 10 }} stroke={COLORS.textSecondary} domain={[0, 100]} />
@@ -169,7 +176,12 @@ export default function DashboardPage() {
         {/* Bottom Chart */}
         <ChartCard title="Produksi GWh Dieng">
           <ResponsiveContainer width="100%" height={256}>
-            <BarChart data={PRODUKSI_DIENG} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+            <BarChart
+              data={PRODUKSI_DIENG}
+              margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
+              style={{ outline: 'none' }}
+              tabIndex={-1}
+            >
               <CartesianGrid strokeDasharray="3 3" stroke={COLORS.border} />
               <XAxis dataKey="month" tick={{ fontSize: 10 }} stroke={COLORS.textSecondary} />
               <YAxis tick={{ fontSize: 10 }} stroke={COLORS.textSecondary} domain={[0, 100]} />

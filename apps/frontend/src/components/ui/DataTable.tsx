@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import { COLORS } from '../../constants/colors';
 import { formatNumberDisplay, formatTableDate } from '../../lib/formatters';
 import DeleteRowIcon from '../../icons/delete-row.icon';
@@ -23,6 +23,8 @@ interface DataTableColumnBase {
   headerVariant?: DataTableHeaderVariant;
   /** Reserved for future column sorting. */
   sortable?: boolean;
+  /** Caps column width (e.g. 240 or '18rem'). */
+  maxWidth?: number | string;
 }
 
 export type DataTableColumnDef<Row extends Record<string, unknown>> =
@@ -51,12 +53,16 @@ export type DataTableColumnDef<Row extends Record<string, unknown>> =
   | (DataTableColumnBase & {
     kind: 'title';
     accessorKey: StringKey<Row>;
+    /** Secondary line under the title (e.g. description). */
+    subtitleKey?: StringKey<Row>;
   })
   | (DataTableColumnBase & {
     kind: 'person';
     accessorKey: StringKey<Row>;
     /** Optional image URL field on the row; falls back to initial letter when missing or empty. */
     avatarKey?: StringKey<Row>;
+    /** Label when name is empty. @default '—' */
+    emptyLabel?: string;
   })
   | (DataTableColumnBase & {
     kind: 'actions';
@@ -92,6 +98,41 @@ function getString<Row extends Record<string, unknown>>(row: Row, key: StringKey
   const value = row[key];
   if (value == null) return '';
   return String(value);
+}
+
+function truncateText(text: string, maxLength: number): string {
+  const trimmed = text.trim();
+  if (trimmed.length <= maxLength) {
+    return trimmed;
+  }
+  return `${trimmed.slice(0, maxLength - 1).trimEnd()}…`;
+}
+
+function columnWidthStyle(maxWidth: number | string | undefined): CSSProperties | undefined {
+  if (maxWidth == null) {
+    return undefined;
+  }
+  const width = typeof maxWidth === 'number' ? `${maxWidth}px` : maxWidth;
+  return { maxWidth: width, width };
+}
+
+function personDisplayName(raw: string, emptyLabel: string): string {
+  const trimmed = raw.trim();
+  if (trimmed === '' || trimmed.toLowerCase() === 'unknown') {
+    return emptyLabel;
+  }
+  return trimmed;
+}
+
+function personInitials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) {
+    return '?';
+  }
+  if (parts.length === 1) {
+    return parts[0].charAt(0).toUpperCase();
+  }
+  return `${parts[0].charAt(0)}${parts[1].charAt(0)}`.toUpperCase();
 }
 
 function getNumber<Row extends Record<string, unknown>>(row: Row, key: StringKey<Row>): number | null {
@@ -150,12 +191,47 @@ function renderCell<Row extends Record<string, unknown>>(
   switch (column.kind) {
     case 'title': {
       const text = getString(row, column.accessorKey);
+      const subtitleKey = column.subtitleKey;
+      const hasSubtitle = subtitleKey != null;
+      const subtitleRaw = hasSubtitle ? getString(row, subtitleKey).trim() : '';
+      const subtitle = subtitleRaw !== '' ? truncateText(subtitleRaw, 72) : '—';
+
+      if (hasSubtitle) {
+        return (
+          <div className="flex min-w-0 items-center gap-2">
+            <span className="flex shrink-0 scale-90 [&>svg]:h-4 [&>svg]:w-3">
+              <PdfGlyph />
+            </span>
+            <div className="min-w-0 flex-1 leading-tight">
+              <p
+                className="truncate text-sm font-semibold"
+                style={{ color: COLORS.textPrimary }}
+                title={text}
+              >
+                {text}
+              </p>
+              <p
+                className="truncate text-[11px]"
+                style={{ color: COLORS.textSecondary }}
+                title={subtitleRaw !== '' ? subtitleRaw : undefined}
+              >
+                {subtitle}
+              </p>
+            </div>
+          </div>
+        );
+      }
+
       return (
-        <div className="flex items-center gap-3">
-          <span className="flex shrink-0 [&>svg]:h-5 [&>svg]:w-[15px]">
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="flex shrink-0 [&>svg]:h-4 [&>svg]:w-3">
             <PdfGlyph />
           </span>
-          <span className="text-sm font-bold" style={{ color: COLORS.textPrimary }}>
+          <span
+            className="truncate text-sm font-semibold"
+            style={{ color: COLORS.textPrimary }}
+            title={text}
+          >
             {text}
           </span>
         </div>
@@ -205,29 +281,39 @@ function renderCell<Row extends Record<string, unknown>>(
       );
     }
     case 'person': {
-      const name = getString(row, column.accessorKey);
-      const initial = name.charAt(0) || '?';
+      const rawName = getString(row, column.accessorKey);
+      const emptyLabel = column.emptyLabel ?? '—';
+      const name = personDisplayName(rawName, emptyLabel);
+      const hasName = name !== emptyLabel;
+      const initial = hasName ? personInitials(name) : '?';
       const avatarUrl =
         column.avatarKey != null ? getString(row, column.avatarKey).trim() : '';
 
       return (
-        <div className="flex items-center gap-3">
+        <div className="flex min-w-0 items-center gap-3">
           {avatarUrl ? (
             <img
               src={avatarUrl}
               alt=""
-              className="h-8 w-8 shrink-0 rounded-full object-cover"
+              className="h-9 w-9 shrink-0 rounded-full object-cover"
               style={{ border: `1px solid ${COLORS.border}` }}
             />
           ) : (
             <div
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold"
-              style={{ backgroundColor: COLORS.border, color: COLORS.textSecondary }}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold"
+              style={{
+                backgroundColor: hasName ? 'color-mix(in srgb, #006FFF 12%, #FFFFFF)' : COLORS.border,
+                color: hasName ? TABLE_HEADER_TEXT : COLORS.textSecondary,
+              }}
             >
               {initial}
             </div>
           )}
-          <span className="text-sm font-bold" style={{ color: COLORS.textPrimary }}>
+          <span
+            className="min-w-0 truncate text-sm font-semibold leading-snug"
+            style={{ color: hasName ? COLORS.textPrimary : COLORS.textSecondary }}
+            title={hasName ? name : undefined}
+          >
             {name}
           </span>
         </div>
@@ -307,7 +393,8 @@ export default function DataTable<Row extends Record<string, unknown>>({
               {columns.map((col) => (
                 <th
                   key={col.id}
-                  className={`px-6 py-4 text-left align-middle${col.kind === 'actions' ? ' select-none' : ''}`}
+                  className={`px-4 py-3 text-left align-middle${col.kind === 'actions' ? ' select-none' : ''}`}
+                  style={columnWidthStyle(col.maxWidth)}
                 >
                   <span
                     className="text-xs font-bold uppercase tracking-wide"
@@ -345,7 +432,8 @@ export default function DataTable<Row extends Record<string, unknown>>({
                   {columns.map((col) => (
                     <td
                       key={col.id}
-                      className={`px-6 py-4 align-middle${col.kind === 'actions' ? ' select-none' : ''}`}
+                      className={`px-4 py-3 align-middle${col.kind === 'actions' ? ' select-none' : ''}`}
+                      style={columnWidthStyle(col.maxWidth)}
                     >
                       {renderCell(col, row, onRowAction)}
                     </td>

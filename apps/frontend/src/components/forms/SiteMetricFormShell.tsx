@@ -153,7 +153,6 @@ export default function SiteMetricFormShell({
                         formatNumber
                         placeholder="Masukkan target yang perlu dicapai"
                         error={errors.target?.message}
-                        className="max-w-sm"
                         {...field}
                       />
                     )}

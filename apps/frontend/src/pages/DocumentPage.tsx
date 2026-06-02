@@ -22,6 +22,7 @@ import { useSite } from '../lib/site-context';
 type DocumentRow = {
   id: string;
   title: string;
+  description: string;
   uploadTime: string;
   uploader: string;
   uploaderAvatar?: string;
@@ -46,9 +47,11 @@ function paginationRange(current: number, total: number): (number | 'dots')[] {
 const DOCUMENT_TABLE_COLUMNS: DataTableColumnDef<DocumentRow>[] = [
   {
     id: 'title',
-    header: 'Judul Dokumen',
+    header: 'Judul & Deskripsi',
     kind: 'title',
     accessorKey: 'title',
+    subtitleKey: 'description',
+    maxWidth: 220,
     sortable: true,
   },
   {
@@ -87,6 +90,7 @@ function toDocumentRow(document: DocumentRecord): DocumentRow {
   return {
     id: document.id,
     title: document.title,
+    description: document.description ?? '',
     uploadTime: document.uploadTime,
     uploader: document.uploader,
     uploaderAvatar: document.uploaderAvatar,
@@ -160,7 +164,9 @@ export default function DocumentPage() {
 
     return rows.filter(
       (row) =>
-        row.title.toLowerCase().includes(keyword) || row.uploader.toLowerCase().includes(keyword)
+        row.title.toLowerCase().includes(keyword) ||
+        row.description.toLowerCase().includes(keyword) ||
+        row.uploader.toLowerCase().includes(keyword)
     );
   }, [rows, search]);
 
@@ -287,7 +293,7 @@ export default function DocumentPage() {
 
         <div className="mb-8">
           <SearchFilterBar
-            placeholder="Cari berdasarkan judul atau pengunggah"
+            placeholder="Cari judul, deskripsi, atau pengunggah"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             disabled={isLoading}
@@ -320,6 +326,7 @@ export default function DocumentPage() {
               if (action === 'edit') {
                 const editState: DocumentEditState = {
                   title: row.title,
+                  description: row.description,
                 };
                 navigate(`/document/edit/${row.id}`, { state: editState });
               }

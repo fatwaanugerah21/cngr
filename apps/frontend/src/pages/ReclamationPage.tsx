@@ -56,8 +56,8 @@ const TABLE_COLUMNS: DataTableColumnDef<ReclamationRow>[] = [
     sortable: true,
   },
   { id: 'site', header: 'Site', kind: 'text', accessorKey: 'site', sortable: true },
-  { id: 'realization', header: 'Realisasi', kind: 'number', accessorKey: 'realization', sortable: true },
   { id: 'target', header: 'Target', kind: 'number', accessorKey: 'target', sortable: true },
+  { id: 'realization', header: 'Realisasi', kind: 'number', accessorKey: 'realization', sortable: true },
   {
     id: 'efficiency',
     header: 'Efisiensi',

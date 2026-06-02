@@ -22,6 +22,7 @@ import { useSite } from '../lib/site-context';
 type ReportRow = {
   id: string;
   title: string;
+  description: string;
   uploadTime: string;
   uploader: string;
   uploaderAvatar?: string;
@@ -46,9 +47,11 @@ function paginationRange(current: number, total: number): (number | 'dots')[] {
 const REPORT_TABLE_COLUMNS: DataTableColumnDef<ReportRow>[] = [
   {
     id: 'title',
-    header: 'Judul Laporan',
+    header: 'Judul & Deskripsi',
     kind: 'title',
     accessorKey: 'title',
+    subtitleKey: 'description',
+    maxWidth: 220,
     sortable: true,
   },
   {
@@ -87,6 +90,7 @@ function toReportRow(report: ReportRecord): ReportRow {
   return {
     id: report.id,
     title: report.title,
+    description: report.description ?? '',
     uploadTime: report.uploadTime,
     uploader: report.uploader,
     uploaderAvatar: report.uploaderAvatar,
@@ -160,7 +164,9 @@ export default function ReportPage() {
 
     return rows.filter(
       (row) =>
-        row.title.toLowerCase().includes(keyword) || row.uploader.toLowerCase().includes(keyword)
+        row.title.toLowerCase().includes(keyword) ||
+        row.description.toLowerCase().includes(keyword) ||
+        row.uploader.toLowerCase().includes(keyword)
     );
   }, [rows, search]);
 
@@ -287,7 +293,7 @@ export default function ReportPage() {
 
         <div className="mb-8">
           <SearchFilterBar
-            placeholder="Cari berdasarkan judul atau pengunggah"
+            placeholder="Cari judul, deskripsi, atau pengunggah"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             disabled={isLoading}
@@ -320,6 +326,7 @@ export default function ReportPage() {
               if (action === 'edit') {
                 const editState: ReportEditState = {
                   title: row.title,
+                  description: row.description,
                 };
                 navigate(`/report/edit/${row.id}`, { state: editState });
               }

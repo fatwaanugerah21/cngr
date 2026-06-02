@@ -122,11 +122,13 @@ export default function RuleFormPage() {
       if (isEdit && id) {
         await updateRegulation(id, {
           title: payload.title,
+          description: payload.description,
           file: payload.file,
         });
       } else if (selectedSite?.id && payload.file) {
         await createRegulation({
           title: payload.title,
+          description: payload.description,
           file: payload.file,
           siteId: selectedSite.id,
         });

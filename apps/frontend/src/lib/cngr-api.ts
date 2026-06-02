@@ -355,6 +355,7 @@ export type RegulationEditState = UploadedFileEditState;
 
 export type CreateUploadedFilePayload = {
   title: string;
+  description?: string;
   file: File;
   siteId: string;
 };
@@ -365,6 +366,7 @@ export type CreateRegulationPayload = CreateUploadedFilePayload;
 
 export type UpdateUploadedFilePayload = {
   title: string;
+  description?: string;
   file?: File | null;
 };
 
@@ -549,6 +551,8 @@ function normalizeUploadedFileRecord(
     record.uploaderLastname
   );
   const uploaderFallback = firstString(
+    record.created_by,
+    record.createdBy,
     record.uploader_name,
     record.uploaderName,
     record.uploaded_by_name,
@@ -557,7 +561,7 @@ function normalizeUploadedFileRecord(
     record.uploaded_by,
     record.uploadedBy
   );
-  const uploader = joinName(uploaderFirstName, uploaderLastName, uploaderFallback || 'Unknown');
+  const uploader = joinName(uploaderFirstName, uploaderLastName, uploaderFallback);
 
   const uploaderAvatar = firstString(
     uploaderUser?.avatarUrl,
@@ -586,7 +590,8 @@ function normalizeUploadedFileRecord(
     title,
     uploadTime: formatUploadTime(record),
     uploader,
-    uploaderAvatar: uploaderAvatar !== '' ? uploaderAvatar : undefined,
+    uploaderAvatar:
+      uploaderAvatar !== '' ? resolveUploadedFileUrl(uploaderAvatar) : undefined,
     fileUrl: filePath !== '' ? resolveUploadedFileUrl(filePath) : undefined,
     siteId,
     description: firstString(record.description, record.summary) || undefined,
@@ -649,6 +654,9 @@ async function createUploadedFile(path: string, payload: CreateUploadedFilePaylo
   const formData = new FormData();
   formData.append('file', payload.file);
   formData.append('title', payload.title);
+  if (payload.description != null && payload.description.trim() !== '') {
+    formData.append('description', payload.description.trim());
+  }
   formData.append('site_id', payload.siteId);
 
   await apiV1Fetch(path, {
@@ -663,6 +671,7 @@ async function updateUploadedFile(
 ): Promise<void> {
   const formData = new FormData();
   formData.append('title', payload.title);
+  formData.append('description', (payload.description ?? '').trim());
   if (payload.file) {
     formData.append('file', payload.file);
   }
@@ -1275,4 +1284,127 @@ export async function downloadRegulation(regulationId: string, title?: string): 
     `regulation/download/${encodeURIComponent(regulationId)}`,
     downloadFallbackFilename(title, regulationId, 'regulation')
   );
+}
+
+export type DashboardSummaryData = {
+  totalTarget: number;
+  totalProduction: number;
+  totalLandOpening: number;
+  totalReclamation: number;
+};
+
+export type DashboardTrendPoint = {
+  target: number;
+  actual: number;
+  date: string;
+};
+
+export type DashboardSupervisorDetail = {
+  firstName: string;
+  lastName: string;
+  nik: string;
+  position: string;
+  province: string;
+  address: string;
+};
+
+function normalizeDashboardTrendPoint(raw: unknown): DashboardTrendPoint | undefined {
+  const record = readRecord(raw);
+  if (!record) {
+    return undefined;
+  }
+
+  const iso = firstDateString(record.date);
+  const date = iso ?? firstString(record.date);
+  if (date === '') {
+    return undefined;
+  }
+
+  return {
+    target: firstNumber(record.target) ?? 0,
+    actual: firstNumber(record.actual) ?? 0,
+    date,
+  };
+}
+
+function normalizeDashboardSummary(raw: unknown): DashboardSummaryData | undefined {
+  const record = readRecord(unwrapApiData(raw));
+  if (!record) {
+    return undefined;
+  }
+
+  return {
+    totalTarget: firstNumber(record.total_target, record.totalTarget) ?? 0,
+    totalProduction: firstNumber(record.total_production, record.totalProduction) ?? 0,
+    totalLandOpening: firstNumber(record.total_land_opening, record.totalLandOpening) ?? 0,
+    totalReclamation: firstNumber(record.total_reclamation, record.totalReclamation) ?? 0,
+  };
+}
+
+function normalizeDashboardSupervisor(raw: unknown): DashboardSupervisorDetail | undefined {
+  const record = readRecord(unwrapApiData(raw));
+  if (!record) {
+    return undefined;
+  }
+
+  return {
+    firstName: firstString(record.firstname, record.first_name, record.firstName),
+    lastName: firstString(record.lastname, record.last_name, record.lastName),
+    nik: firstString(record.nik),
+    position: firstString(record.position) || 'Supervisor Site',
+    province: firstString(record.province) || '—',
+    address: firstString(record.address) || '—',
+  };
+}
+
+function extractDashboardTrendArray(raw: unknown): DashboardTrendPoint[] {
+  const data = unwrapApiData<unknown>(raw);
+  const rows = Array.isArray(data) ? data : extractArray(raw);
+  return rows
+    .map((row) => normalizeDashboardTrendPoint(row))
+    .filter((point): point is DashboardTrendPoint => point != null);
+}
+
+export async function fetchDashboardSummary(siteId: string): Promise<DashboardSummaryData | undefined> {
+  const response = await apiV1Json<unknown>(
+    `dashboard/summary/site/${encodeURIComponent(siteId)}`
+  );
+  return normalizeDashboardSummary(response);
+}
+
+export async function fetchDashboardProductionTrend(siteId: string): Promise<DashboardTrendPoint[]> {
+  const response = await apiV1Json<unknown>(
+    `dashboard/production-trend/site/${encodeURIComponent(siteId)}`
+  );
+  return extractDashboardTrendArray(response);
+}
+
+export async function fetchDashboardLandOpeningTrend(siteId: string): Promise<DashboardTrendPoint[]> {
+  const response = await apiV1Json<unknown>(
+    `dashboard/land-opening-trend/site/${encodeURIComponent(siteId)}`
+  );
+  return extractDashboardTrendArray(response);
+}
+
+export async function fetchDashboardReclamationTrend(siteId: string): Promise<DashboardTrendPoint[]> {
+  const response = await apiV1Json<unknown>(
+    `dashboard/reclamation-trend/site/${encodeURIComponent(siteId)}`
+  );
+  return extractDashboardTrendArray(response);
+}
+
+export async function fetchDashboardRehabDasTrend(siteId: string): Promise<DashboardTrendPoint[]> {
+  const response = await apiV1Json<unknown>(
+    `dashboard/rehab-das-trend/site/${encodeURIComponent(siteId)}`
+  );
+  return extractDashboardTrendArray(response);
+}
+
+export async function fetchDashboardSupervisorDetail(
+  siteId: string
+): Promise<DashboardSupervisorDetail | undefined> {
+  const response = await apiV1Json<unknown>(
+    `dashboard/supervisor/site/${encodeURIComponent(siteId)}`
+  );
+  return normalizeDashboardSupervisor(response);
 }

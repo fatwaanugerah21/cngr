@@ -75,3 +75,17 @@ body {
 #root {
   min-height: 100vh;
 }
+
+/* Recharts SVG receives focus on click; suppress focus ring on dashboard charts */
+.recharts-no-focus-outline .recharts-wrapper,
+.recharts-no-focus-outline .recharts-surface,
+.recharts-no-focus-outline svg {
+  outline: none !important;
+}
+
+.recharts-no-focus-outline .recharts-wrapper:focus,
+.recharts-no-focus-outline .recharts-wrapper:focus-visible,
+.recharts-no-focus-outline svg:focus,
+.recharts-no-focus-outline svg:focus-visible {
+  outline: none !important;
+}

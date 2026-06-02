@@ -122,11 +122,13 @@ export default function DocumentFormPage() {
       if (isEdit && id) {
         await updateDocument(id, {
           title: payload.title,
+          description: payload.description,
           file: payload.file,
         });
       } else if (selectedSite?.id && payload.file) {
         await createDocument({
           title: payload.title,
+          description: payload.description,
           file: payload.file,
           siteId: selectedSite.id,
         });

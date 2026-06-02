@@ -52,3 +52,11 @@ export function formatNumberDisplay(value: number | null | undefined): string {
 
   return numberDisplayFormatter.format(value);
 }
+
+export function formatPercentDisplay(value: number | null | undefined): string {
+  if (value == null || !Number.isFinite(value)) {
+    return value == null ? '' : String(value);
+  }
+
+  return `${formatNumberDisplay(value)}%`;
+}
