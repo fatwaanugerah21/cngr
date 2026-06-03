@@ -82,11 +82,13 @@ export const TREND_VIEW_TARGET_BAR_COLORS: Record<TrendView, string> = {
   'rehab-das': '#93C5FD',
 };
 
+const TREND_VIEW_UNIT = 'Ha';
+
 export const TREND_VIEW_UNIT_SUFFIX: Record<TrendView, string> = {
-  production: 'Ton',
-  'land-opening': 'Hektar',
-  reclamation: 'Hektar',
-  'rehab-das': 'Ton',
+  production: TREND_VIEW_UNIT,
+  'land-opening': TREND_VIEW_UNIT,
+  reclamation: TREND_VIEW_UNIT,
+  'rehab-das': TREND_VIEW_UNIT,
 };
 
 const TREND_VIEW_LABEL_UNIT_SUFFIX: Record<string, string> = Object.fromEntries(

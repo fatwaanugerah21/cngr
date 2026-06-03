@@ -31,20 +31,13 @@ function parseTableDateValue(value: string): Date | null {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
-function getTableDateTimestamp(value: string): number {
+export function getTableDateTimestamp(value: string): number {
   const parsed = parseTableDateValue(value);
-  console.log("parsed: ", parsed);
-  
   return parsed?.getTime() ?? 0;
 }
 
-/** Sort comparator for table rows: newest date first. */
-export function compareTableDatesDesc(left: string, right: string): number {
-  return getTableDateTimestamp(right) - getTableDateTimestamp(left);
-}
-
-export function sortRowsByTableDateDesc<T extends { date: string }>(rows: readonly T[]): T[] {
-  return [...rows].sort((a, b) => compareTableDatesDesc(a.date, b.date));
+export function parsePercentDisplay(value: string): number {
+  return Number(value.replace('%', '').trim()) || 0;
 }
 
 /** Formats as DD MMMM YYYY (e.g. 01 Juni 2026). */

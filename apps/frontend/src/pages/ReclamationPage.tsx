@@ -18,7 +18,6 @@ import {
   type ProductionRecord,
   type ReclamationEditState,
 } from '../lib/cngr-api';
-import { sortRowsByTableDateDesc } from '../lib/formatters';
 import { TREND_VIEW_UNIT_SUFFIX } from '../lib/site-dashboard-api';
 
 type ReclamationRow = {
@@ -96,7 +95,6 @@ const TABLE_COLUMNS: DataTableColumnDef<ReclamationRow>[] = [
     header: 'Status',
     kind: 'text',
     accessorKey: 'status',
-    sortable: true,
     render: (row) => {
       const tone = statusPillStyle(row.status);
       return (
@@ -177,16 +175,13 @@ export default function ReclamationPage() {
 
   const filteredRows = useMemo(() => {
     const keyword = search.trim().toLowerCase();
-    const source = rows;
-    const filtered = !keyword
-      ? source
-      : source.filter(
-          (row) =>
-            row.site.toLowerCase().includes(keyword) ||
-            row.date.toLowerCase().includes(keyword) ||
-            row.status.toLowerCase().includes(keyword)
-        );
-    return sortRowsByTableDateDesc(filtered);
+    if (!keyword) return rows;
+    return rows.filter(
+      (row) =>
+        row.site.toLowerCase().includes(keyword) ||
+        row.date.toLowerCase().includes(keyword) ||
+        row.status.toLowerCase().includes(keyword)
+    );
   }, [rows, search]);
 
   const onConfirmDelete = async () => {
@@ -264,6 +259,7 @@ export default function ReclamationPage() {
           <DataTable
             columns={TABLE_COLUMNS}
             data={filteredRows}
+            defaultSort={{ columnId: 'date', direction: 'desc' }}
             getRowId={(row) => row.id}
             minWidth={900}
             onRowAction={(action, row) => {

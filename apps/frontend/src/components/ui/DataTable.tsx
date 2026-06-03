@@ -1,6 +1,11 @@
-import type { CSSProperties, ReactNode } from 'react';
+import { useMemo, useState, type CSSProperties, type ReactNode } from 'react';
 import { COLORS } from '../../constants/colors';
-import { formatAmountWithSuffix, formatTableDate } from '../../lib/formatters';
+import {
+  formatAmountWithSuffix,
+  formatTableDate,
+  getTableDateTimestamp,
+  parsePercentDisplay,
+} from '../../lib/formatters';
 import DeleteRowIcon from '../../icons/delete-row.icon';
 import DownloadIcon from '../../icons/download.icon';
 import PencilIcon from '../../icons/pencil.icon';
@@ -14,6 +19,13 @@ export type DataTableHeaderVariant = 'primary' | 'default';
 
 export type DataTableBuiltinAction = 'edit' | 'delete' | 'download';
 
+export type DataTableSortDirection = 'asc' | 'desc';
+
+export type DataTableSortState = {
+  columnId: string;
+  direction: DataTableSortDirection;
+};
+
 type StringKey<Row> = Extract<keyof Row, string>;
 
 interface DataTableColumnBase {
@@ -21,7 +33,7 @@ interface DataTableColumnBase {
   header: ReactNode;
   /** Column header label color. Defaults to primary to match document table spec. */
   headerVariant?: DataTableHeaderVariant;
-  /** Reserved for future column sorting. */
+  /** Enables click-to-sort on the column header. */
   sortable?: boolean;
   /** Caps column width (e.g. 240 or '18rem'). */
   maxWidth?: number | string;
@@ -39,7 +51,7 @@ export type DataTableColumnDef<Row extends Record<string, unknown>> =
   | (DataTableColumnBase & {
     kind: 'number';
     accessorKey: StringKey<Row>;
-    /** Appended to formatted values (e.g. Ton, Hektar). */
+    /** Appended to formatted values (e.g. Ha). */
     unitSuffix?: string;
     tone?: 'primary' | 'secondary';
     /** @default 'normal' */
@@ -89,6 +101,8 @@ export interface DataTableProps<Row extends Record<string, unknown>> {
   tableClassName?: string;
   /** Shown with a fade-in when `data` is empty. */
   emptyMessage?: ReactNode;
+  /** Initial column sort applied when the table mounts. */
+  defaultSort?: DataTableSortState;
 }
 
 function headerColor(variant: DataTableHeaderVariant | undefined) {
@@ -147,6 +161,93 @@ function getNumber<Row extends Record<string, unknown>>(row: Row, key: StringKey
     return Number.isFinite(parsed) ? parsed : null;
   }
   return null;
+}
+
+type SortableColumn<Row extends Record<string, unknown>> = Extract<
+  DataTableColumnDef<Row>,
+  { accessorKey: StringKey<Row> }
+>;
+
+function isSortableColumn<Row extends Record<string, unknown>>(
+  column: DataTableColumnDef<Row>
+): column is SortableColumn<Row> {
+  return column.sortable === true && 'accessorKey' in column;
+}
+
+function getColumnSortValue<Row extends Record<string, unknown>>(
+  row: Row,
+  column: SortableColumn<Row>
+): number | string {
+  switch (column.kind) {
+    case 'date':
+      return getTableDateTimestamp(getString(row, column.accessorKey));
+    case 'number':
+      return getNumber(row, column.accessorKey) ?? 0;
+    case 'text': {
+      const text = getString(row, column.accessorKey);
+      if (text.includes('%')) {
+        return parsePercentDisplay(text);
+      }
+      return text.toLowerCase();
+    }
+    case 'badge':
+      return getString(row, column.accessorKey).toLowerCase();
+    default:
+      return '';
+  }
+}
+
+function compareSortValues(left: number | string, right: number | string): number {
+  if (typeof left === 'number' && typeof right === 'number') {
+    return left - right;
+  }
+  return String(left).localeCompare(String(right), 'id', { numeric: true });
+}
+
+function defaultSortDirectionForColumn<Row extends Record<string, unknown>>(
+  column: SortableColumn<Row>
+): DataTableSortDirection {
+  return column.kind === 'date' || column.kind === 'number' || column.kind === 'text' ? 'desc' : 'asc';
+}
+
+function SortIndicator({
+  direction,
+  active,
+  color,
+}: {
+  direction: DataTableSortDirection | null;
+  active: boolean;
+  color: string;
+}) {
+  const inactiveColor = 'color-mix(in srgb, currentColor 35%, transparent)';
+  const ascColor = active && direction === 'asc' ? color : inactiveColor;
+  const descColor = active && direction === 'desc' ? color : inactiveColor;
+
+  return (
+    <svg
+      width="10"
+      height="14"
+      viewBox="0 0 10 14"
+      fill="none"
+      className="inline-block shrink-0"
+      aria-hidden
+    >
+      <path
+        d="M1.5 4.5L5 1.5L8.5 4.5"
+        stroke={ascColor}
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M1.5 9.5L5 12.5L8.5 9.5"
+        stroke={descColor}
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
 }
 
 function PdfGlyph() {
@@ -373,9 +474,50 @@ export default function DataTable<Row extends Record<string, unknown>>({
   wrapperClassName = '',
   tableClassName = '',
   emptyMessage = DEFAULT_EMPTY_MESSAGE,
+  defaultSort,
 }: DataTableProps<Row>) {
+  const [sort, setSort] = useState<DataTableSortState | null>(() => defaultSort ?? null);
   const minWidthCss = typeof minWidth === 'number' ? `${minWidth}px` : minWidth;
   const isEmpty = data.length === 0;
+
+  const sortedData = useMemo(() => {
+    if (!sort) {
+      return data;
+    }
+
+    const column = columns.find((col) => col.id === sort.columnId);
+    if (!column || !isSortableColumn(column)) {
+      return data;
+    }
+
+    const directionMultiplier = sort.direction === 'asc' ? 1 : -1;
+    return [...data].sort((left, right) => {
+      const comparison = compareSortValues(
+        getColumnSortValue(left, column),
+        getColumnSortValue(right, column)
+      );
+      return comparison * directionMultiplier;
+    });
+  }, [columns, data, sort]);
+
+  const handleSortHeader = (column: DataTableColumnDef<Row>) => {
+    if (!isSortableColumn(column)) {
+      return;
+    }
+
+    setSort((current) => {
+      if (current?.columnId === column.id) {
+        return {
+          columnId: column.id,
+          direction: current.direction === 'asc' ? 'desc' : 'asc',
+        };
+      }
+      return {
+        columnId: column.id,
+        direction: defaultSortDirectionForColumn(column),
+      };
+    });
+  };
 
   return (
     <div
@@ -392,20 +534,49 @@ export default function DataTable<Row extends Record<string, unknown>>({
                 backgroundColor: TABLE_HEADER_BACKGROUND,
               }}
             >
-              {columns.map((col) => (
-                <th
-                  key={col.id}
-                  className={`px-4 py-3 text-left align-middle${col.kind === 'actions' ? ' select-none' : ''}`}
-                  style={columnWidthStyle(col.maxWidth)}
-                >
-                  <span
-                    className="text-xs font-bold uppercase tracking-wide"
-                    style={{ color: headerColor(col.headerVariant) }}
+              {columns.map((col) => {
+                const headerTone = headerColor(col.headerVariant);
+                const isActiveSort = sort?.columnId === col.id;
+                const sortDirection = isActiveSort ? sort.direction : null;
+
+                return (
+                  <th
+                    key={col.id}
+                    className={`px-4 py-3 text-left align-middle${col.kind === 'actions' ? ' select-none' : ''}`}
+                    style={columnWidthStyle(col.maxWidth)}
+                    aria-sort={
+                      isSortableColumn(col) && isActiveSort
+                        ? sortDirection === 'asc'
+                          ? 'ascending'
+                          : 'descending'
+                        : undefined
+                    }
                   >
-                    {col.header}
-                  </span>
-                </th>
-              ))}
+                    {isSortableColumn(col) ? (
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-1.5 text-left uppercase tracking-wide transition-opacity hover:opacity-80"
+                        style={{ color: headerTone }}
+                        onClick={() => handleSortHeader(col)}
+                      >
+                        <span className="text-xs font-bold">{col.header}</span>
+                        <SortIndicator
+                          direction={sortDirection}
+                          active={isActiveSort}
+                          color={headerTone}
+                        />
+                      </button>
+                    ) : (
+                      <span
+                        className="text-xs font-bold uppercase tracking-wide"
+                        style={{ color: headerTone }}
+                      >
+                        {col.header}
+                      </span>
+                    )}
+                  </th>
+                );
+              })}
             </tr>
           </thead>
           <tbody>
@@ -422,13 +593,13 @@ export default function DataTable<Row extends Record<string, unknown>>({
                 </td>
               </tr>
             ) : (
-              data.map((row, idx) => (
+              sortedData.map((row, idx) => (
                 <tr
                   key={getRowId(row)}
                   className="transition-colors hover:bg-gray-50"
                   style={{
                     backgroundColor: COLORS.white,
-                    borderBottom: idx < data.length - 1 ? `1px solid ${COLORS.border}` : undefined,
+                    borderBottom: idx < sortedData.length - 1 ? `1px solid ${COLORS.border}` : undefined,
                   }}
                 >
                   {columns.map((col) => (

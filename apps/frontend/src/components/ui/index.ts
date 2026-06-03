@@ -8,6 +8,8 @@ export type {
   DataTableColumnDef,
   DataTableHeaderVariant,
   DataTableProps,
+  DataTableSortDirection,
+  DataTableSortState,
 } from './DataTable';
 export { default as IconButton } from './IconButton';
 export type { IconButtonProps } from './IconButton';
