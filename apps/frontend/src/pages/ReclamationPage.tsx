@@ -18,6 +18,7 @@ import {
   type ProductionRecord,
   type ReclamationEditState,
 } from '../lib/cngr-api';
+import { sortRowsByTableDateDesc } from '../lib/formatters';
 import { TREND_VIEW_UNIT_SUFFIX } from '../lib/site-dashboard-api';
 
 type ReclamationRow = {
@@ -177,14 +178,15 @@ export default function ReclamationPage() {
   const filteredRows = useMemo(() => {
     const keyword = search.trim().toLowerCase();
     const source = rows;
-    if (!keyword) return source;
-
-    return source.filter(
-      (row) =>
-        row.site.toLowerCase().includes(keyword) ||
-        row.date.toLowerCase().includes(keyword) ||
-        row.status.toLowerCase().includes(keyword)
-    );
+    const filtered = !keyword
+      ? source
+      : source.filter(
+          (row) =>
+            row.site.toLowerCase().includes(keyword) ||
+            row.date.toLowerCase().includes(keyword) ||
+            row.status.toLowerCase().includes(keyword)
+        );
+    return sortRowsByTableDateDesc(filtered);
   }, [rows, search]);
 
   const onConfirmDelete = async () => {
