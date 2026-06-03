@@ -41,6 +41,8 @@ export type DailyTargetRealization = {
 
 export type StatusHistoryRow = {
   date: string;
+  target: number;
+  realization: number;
   efficiency: number;
   status: 'Good' | 'Warn' | 'Danger';
 };

@@ -5,9 +5,11 @@ import {
   Button,
   ConfirmationModalComponent,
   DataTable,
+  DataTableSkeleton,
   type DataTableColumnDef,
   SearchInput,
 } from '../components/ui';
+import { useTableLoading } from '../lib/use-table-loading';
 import { COLORS } from '../constants/colors';
 import { deleteUser, fetchAllUsers, type UserManagementRecord } from '../lib/cngr-api';
 import { buildUserManagementListState, readUserManagementListState } from './user-management-list-state';
@@ -110,8 +112,8 @@ export default function UserManagementPage() {
   const [users, setUsers] = useState<UserManagementRecord[]>([]);
   const [search, setSearch] = useState(restoredListState.search);
   const [currentPage, setCurrentPage] = useState(restoredListState.currentPage);
-  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | undefined>();
+  const { showSkeleton, startLoad, finishLoad } = useTableLoading(location.key);
   const [deleteTarget, setDeleteTarget] = useState<UserRow | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | undefined>();
@@ -127,7 +129,7 @@ export default function UserManagementPage() {
     let cancelled = false;
 
     async function loadUsers() {
-      setIsLoading(true);
+      startLoad();
       setError(undefined);
 
       try {
@@ -142,7 +144,7 @@ export default function UserManagementPage() {
         }
       } finally {
         if (!cancelled) {
-          setIsLoading(false);
+          finishLoad(location.key);
         }
       }
     }
@@ -152,7 +154,7 @@ export default function UserManagementPage() {
     return () => {
       cancelled = true;
     };
-  }, [location.key]);
+  }, [finishLoad, location.key, startLoad]);
 
   useEffect(() => {
     if (previousSearchRef.current === search) {
@@ -287,7 +289,7 @@ export default function UserManagementPage() {
               placeholder="Search by name, username, or NIK"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              disabled={isLoading}
+              disabled={showSkeleton}
             />
             <Button
               type="button"
@@ -296,7 +298,7 @@ export default function UserManagementPage() {
               className="min-h-11 w-full shrink-0 sm:w-auto sm:min-w-[7.5rem]"
               leftIcon={<FilterLinesIcon />}
               onClick={() => {}}
-              disabled={isLoading}
+              disabled={showSkeleton}
             >
               Filters
             </Button>
@@ -310,13 +312,12 @@ export default function UserManagementPage() {
           >
             {error}
           </div>
-        ) : isLoading ? (
-          <div
-            className="flex min-h-40 items-center justify-center rounded-2xl border bg-white p-8 text-center shadow-sm"
-            style={{ borderColor: COLORS.border, color: COLORS.textSecondary }}
-          >
-            Memuat data user...
-          </div>
+        ) : showSkeleton ? (
+          <DataTableSkeleton
+            variant="user"
+            loadingLabel="Memuat data user…"
+            showPaginationFooter
+          />
         ) : pageRows.length === 0 ? (
           <div
             className="flex min-h-40 items-center justify-center rounded-2xl border bg-white p-8 text-center shadow-sm"

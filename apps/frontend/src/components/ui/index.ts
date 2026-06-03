@@ -1,6 +1,8 @@
 export { default as Button } from './Button';
 export type { ButtonProps, ButtonVariant } from './Button';
 export { default as DataTable } from './DataTable';
+export { default as DataTableSkeleton } from './DataTableSkeleton';
+export type { DataTableSkeletonProps } from './DataTableSkeleton';
 export type {
   DataTableBuiltinAction,
   DataTableColumnDef,
@@ -25,3 +27,5 @@ export { default as SearchInput } from './SearchInput';
 export type { SearchInputProps, SearchInputVisualVariant } from './SearchInput';
 export { default as ConfirmationModalComponent } from './ConfirmationModalComponent';
 export type { ConfirmationModalComponentProps } from './ConfirmationModalComponent';
+export { default as Skeleton } from './Skeleton';
+export type { SkeletonProps } from './Skeleton';

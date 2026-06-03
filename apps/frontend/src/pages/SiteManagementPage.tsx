@@ -1,22 +1,44 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PageHeader from '../components/layout/PageHeader';
 import CreateSiteModal, { type CreateSitePayload } from '../components/site-management/CreateSiteModal';
-import { Button, SearchInput } from '../components/ui';
+import { Button, ConfirmationModalComponent, SearchInput } from '../components/ui';
+import SiteCardGridSkeleton from '../components/site-management/SiteCardGridSkeleton';
+import { useTableLoading } from '../lib/use-table-loading';
+import DeleteRowIcon from '../icons/delete-row.icon';
+import PencilIcon from '../icons/pencil.icon';
 import { COLORS } from '../constants/colors';
 import { type SiteRecord } from '../data/sites-dummy';
 import { EUserRole, hasAdminAccess } from '../lib/navigation-session';
 import { useSite } from '../lib/site-context';
 import {
   createSite,
+  deleteSite,
   listSites,
   listSitesBySupervisor,
   listSupervisorUsers,
+  updateSite,
   type UserManagementRecord,
 } from '../lib/cngr-api';
 import { useAuth } from '../lib/auth-context';
 
 const RESULTS_PER_PAGE = 9;
+
+function toSiteApiPayload(payload: CreateSitePayload) {
+  const supervisorId = Number(payload.picValue);
+  if (!Number.isFinite(supervisorId)) {
+    throw new Error('Supervisor site tidak valid.');
+  }
+
+  return {
+    address:
+      payload.location.trim() || [payload.city.trim(), payload.province.trim()].filter(Boolean).join(', '),
+    city: payload.city.trim(),
+    province: payload.province.trim(),
+    sitename: payload.siteName,
+    supervisor_id: supervisorId,
+  };
+}
 
 function paginationRange(current: number, total: number): (number | 'dots')[] {
   if (total <= 7) {
@@ -73,60 +95,103 @@ function FilterLinesIcon() {
   );
 }
 
-type SiteStatusMeta = {
+function SiteCardAction({
+  label,
+  ariaLabel,
+  icon,
+  tone,
+  onClick,
+}: {
   label: string;
-  badgeBg: string;
-  badgeText: string;
-  badgeBorder: string;
-};
-
-const SITE_STATUS_META: Record<SiteRecord['status'], SiteStatusMeta> = {
-  active: {
-    label: 'Active',
-    badgeBg: '#DCFCE7',
-    badgeText: '#16A34A',
-    badgeBorder: '#BBF7D0',
-  },
-  inactive: {
-    label: 'Inactive',
-    badgeBg: '#FEF2F2',
-    badgeText: '#DC2626',
-    badgeBorder: '#FECACA',
-  },
-};
+  ariaLabel: string;
+  icon: ReactNode;
+  tone: 'edit' | 'delete';
+  onClick: () => void;
+}) {
+  const isEdit = tone === 'edit';
+  return (
+    <button
+      type="button"
+      aria-label={ariaLabel}
+      title={ariaLabel}
+      onClick={onClick}
+      className={`group flex h-9 flex-1 items-center justify-center gap-1.5 px-3 text-[11px] font-semibold transition-all duration-200 sm:min-w-[4.75rem] ${
+        isEdit
+          ? 'text-[#2563EB] hover:bg-[#EFF6FF] active:bg-[#DBEAFE]'
+          : 'text-[#DC2626] hover:bg-[#FEF2F2] active:bg-[#FEE2E2]'
+      }`}
+    >
+      <span
+        className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full transition-colors duration-200 ${
+          isEdit
+            ? 'bg-[#DBEAFE] group-hover:bg-[#BFDBFE]'
+            : 'bg-[#FEE2E2] group-hover:bg-[#FECACA]'
+        }`}
+      >
+        {icon}
+      </span>
+      <span className="hidden sm:inline">{label}</span>
+    </button>
+  );
+}
 
 function SiteCard({
   site,
   canViewDashboard,
+  canManageSite,
   onViewDashboard,
+  onEdit,
+  onDelete,
 }: {
   site: SiteRecord;
   canViewDashboard: boolean;
+  canManageSite: boolean;
   onViewDashboard: (site: SiteRecord) => void;
+  onEdit: (site: SiteRecord) => void;
+  onDelete: (site: SiteRecord) => void;
 }) {
-  const meta = SITE_STATUS_META[site.status];
   return (
     <div
-      className="relative flex min-h-[172px] flex-col rounded-2xl border bg-white p-5 shadow-sm"
+      className="flex min-h-[172px] flex-col rounded-2xl border bg-white p-5 shadow-sm transition-shadow duration-200 hover:shadow-md"
       style={{ borderColor: COLORS.border }}
     >
-      <span
-        className="absolute right-5 top-5 inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium"
-        style={{
-          backgroundColor: meta.badgeBg,
-          color: meta.badgeText,
-          borderColor: meta.badgeBorder,
-        }}
-      >
-        {meta.label}
-      </span>
-
-      <div className="flex flex-1 flex-col">
-        <div className="mb-3" style={{ color: COLORS.sidebarBg }}>
+      <div className="mb-4 flex items-start justify-between gap-3">
+        <div className="pt-0.5" style={{ color: COLORS.sidebarBg }}>
           <SiteNodeIcon />
         </div>
 
-        <h3 className="text-sm font-bold" style={{ color: COLORS.textPrimary }}>
+        <div className="flex flex-col items-end gap-2">
+          {canManageSite ? (
+            <div
+              className="inline-flex overflow-hidden rounded-full border shadow-sm"
+              style={{
+                borderColor: COLORS.border,
+                backgroundColor: COLORS.white,
+                boxShadow: '0 1px 2px color-mix(in srgb, #0a1628 6%, transparent)',
+              }}
+            >
+              <SiteCardAction
+                label="Ubah"
+                ariaLabel="Ubah site"
+                tone="edit"
+                onClick={() => onEdit(site)}
+                icon={<PencilIcon className="h-3.5 w-3.5" fill="#2563EB" />}
+              />
+              <span className="my-1.5 w-px self-stretch bg-[#E5E7EB]" aria-hidden />
+              <SiteCardAction
+                label="Hapus"
+                ariaLabel="Hapus site"
+                tone="delete"
+                onClick={() => onDelete(site)}
+                icon={<DeleteRowIcon className="h-3.5 w-3.5" fill="#DC2626" />}
+              />
+            </div>
+          ) : null}
+        </div>
+      </div>
+
+      <div className="flex flex-1 flex-col">
+        <h3 className="text-sm font-bold leading-snug" style={{ color: COLORS.textPrimary }}>
           {site.name}
         </h3>
         <p className="mt-2 text-[11px]" style={{ color: COLORS.textSecondary }}>
@@ -160,14 +225,20 @@ export default function SiteManagementPage() {
   const [search, setSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [createOpen, setCreateOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [editSite, setEditSite] = useState<SiteRecord | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<SiteRecord | null>(null);
   const [error, setError] = useState<string | undefined>();
   const [isCreating, setIsCreating] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | undefined>();
   const [supervisors, setSupervisors] = useState<UserManagementRecord[]>([]);
-  const { setSelectedSite } = useSite();
+  const { selectedSite, setSelectedSite, clearSelectedSite } = useSite();
   const { user: currentUser } = useAuth();
   const currentRole = currentUser?.role ?? EUserRole.ADMIN;
   const currentUserId = currentUser?.id;
+  const siteLoadKey = `${currentRole}-${currentUserId ?? ''}`;
+  const { showSkeleton, startLoad, finishLoad } = useTableLoading(siteLoadKey);
 
   useEffect(() => {
     if (currentRole === EUserRole.SUPERVISOR) {
@@ -179,7 +250,7 @@ export default function SiteManagementPage() {
     let cancelled = false;
 
     async function loadSites() {
-      setIsLoading(true);
+      startLoad();
       setError(undefined);
 
       try {
@@ -207,7 +278,7 @@ export default function SiteManagementPage() {
         }
       } finally {
         if (!cancelled) {
-          setIsLoading(false);
+          finishLoad(siteLoadKey);
         }
       }
     }
@@ -217,18 +288,33 @@ export default function SiteManagementPage() {
     return () => {
       cancelled = true;
     };
-  }, [currentRole, currentUserId]);
+  }, [currentRole, currentUserId, finishLoad, siteLoadKey, startLoad]);
 
   useEffect(() => {
     setCurrentPage(1);
   }, [search, sites]);
 
-  const availableSupervisors = useMemo(() => {
-    const assignedSupervisorIds = new Set(
-      sites.map((site) => site.supervisorId.trim()).filter((id) => id !== '')
+  const assignedSupervisorIds = useMemo(
+    () => new Set(sites.map((site) => site.supervisorId.trim()).filter((id) => id !== '')),
+    [sites]
+  );
+
+  const availableSupervisors = useMemo(
+    () => supervisors.filter((supervisor) => !assignedSupervisorIds.has(supervisor.id)),
+    [assignedSupervisorIds, supervisors]
+  );
+
+  const editSupervisors = useMemo(() => {
+    if (!editSite) {
+      return availableSupervisors;
+    }
+
+    const currentSupervisorId = editSite.supervisorId.trim();
+    return supervisors.filter(
+      (supervisor) =>
+        !assignedSupervisorIds.has(supervisor.id) || supervisor.id === currentSupervisorId
     );
-    return supervisors.filter((supervisor) => !assignedSupervisorIds.has(supervisor.id));
-  }, [supervisors, sites]);
+  }, [assignedSupervisorIds, availableSupervisors, editSite, supervisors]);
 
   const filteredSites = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -305,40 +391,79 @@ export default function SiteManagementPage() {
     </div>
   );
 
+  const refreshSites = async () => {
+    const [refreshedSites, refreshedSupervisors] = await Promise.all([
+      currentRole === EUserRole.SUPERVISOR && currentUserId
+        ? listSitesBySupervisor(currentUserId)
+        : listSites(),
+      listSupervisorUsers(),
+    ]);
+
+    setSites(refreshedSites);
+    setSupervisors(refreshedSupervisors);
+    return refreshedSites;
+  };
+
   const handleCreateSubmit = async (payload: CreateSitePayload) => {
     setIsCreating(true);
     try {
-      const supervisorId = Number(payload.picValue);
-      if (!Number.isFinite(supervisorId)) {
-        throw new Error('Supervisor site tidak valid.');
-      }
-
-      await createSite({
-        address:
-          payload.location.trim() || [payload.city.trim(), payload.province.trim()].filter(Boolean).join(', '),
-        city: payload.city.trim(),
-        province: payload.province.trim(),
-        sitename: payload.siteName,
-        supervisor_id: supervisorId,
-      });
-
-      const [refreshedSites, refreshedSupervisors] = await Promise.all([
-        currentRole === EUserRole.SUPERVISOR && currentUserId
-          ? listSitesBySupervisor(currentUserId)
-          : listSites(),
-        listSupervisorUsers(),
-      ]);
-
-      setSites(refreshedSites);
-      setSupervisors(refreshedSupervisors);
+      await createSite(toSiteApiPayload(payload));
+      await refreshSites();
       setSearch('');
       setCreateOpen(false);
       setError(undefined);
       setCurrentPage(1);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Gagal menyimpan data site.');
+      throw err;
     } finally {
       setIsCreating(false);
+    }
+  };
+
+  const handleEditSubmit = async (payload: CreateSitePayload) => {
+    if (!editSite) {
+      return;
+    }
+
+    setIsUpdating(true);
+    try {
+      await updateSite(editSite.id, toSiteApiPayload(payload));
+      const refreshedSites = await refreshSites();
+      const updatedSite = refreshedSites.find((site) => site.id === editSite.id);
+      if (updatedSite && selectedSite?.id === editSite.id) {
+        setSelectedSite({ id: updatedSite.id, name: updatedSite.name });
+      }
+      setEditSite(null);
+      setError(undefined);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Gagal memperbarui data site.');
+      throw err;
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const onConfirmDelete = async () => {
+    if (!deleteTarget || isDeleting) {
+      return;
+    }
+
+    setIsDeleting(true);
+    setDeleteError(undefined);
+
+    try {
+      await deleteSite(deleteTarget.id);
+      if (selectedSite?.id === deleteTarget.id) {
+        clearSelectedSite();
+      }
+      await refreshSites();
+      setDeleteTarget(null);
+      setError(undefined);
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : 'Gagal menghapus site.');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -350,6 +475,8 @@ export default function SiteManagementPage() {
   };
 
   const canViewDashboard = hasAdminAccess(currentRole);
+  const canManageSite = hasAdminAccess(currentRole);
+
   return (
     <div className="flex flex-col">
       <PageHeader title="Manajemen Site" />
@@ -371,7 +498,7 @@ export default function SiteManagementPage() {
             className="min-h-11 shrink-0 self-stretch sm:self-center sm:px-8"
             leftIcon={<PlusIcon />}
             onClick={() => setCreateOpen(true)}
-            disabled={isLoading || isCreating}
+            disabled={showSkeleton || isCreating || isUpdating}
           >
             Tambah Site
           </Button>
@@ -384,7 +511,7 @@ export default function SiteManagementPage() {
               placeholder="Search site by site..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              disabled={isLoading}
+              disabled={showSkeleton}
             />
             <Button
               type="button"
@@ -393,7 +520,7 @@ export default function SiteManagementPage() {
               className="min-h-11 w-full shrink-0 sm:w-auto sm:min-w-[7.5rem]"
               leftIcon={<FilterLinesIcon />}
               onClick={() => {}}
-              disabled={isLoading}
+              disabled={showSkeleton}
             >
               Filters
             </Button>
@@ -409,15 +536,8 @@ export default function SiteManagementPage() {
               {error}
             </p>
           </div>
-        ) : isLoading ? (
-          <div
-            className="flex min-h-40 items-center justify-center rounded-2xl border bg-white p-8 text-center shadow-sm"
-            style={{ borderColor: COLORS.border }}
-          >
-            <p className="text-sm" style={{ color: COLORS.textSecondary }}>
-              Memuat data site...
-            </p>
-          </div>
+        ) : showSkeleton ? (
+          <SiteCardGridSkeleton loadingLabel="Memuat data site…" />
         ) : pageRows.length === 0 ? (
           <div
             className="flex min-h-40 items-center justify-center rounded-2xl border bg-white p-8 text-center shadow-sm"
@@ -435,7 +555,16 @@ export default function SiteManagementPage() {
                   key={site.id}
                   site={site}
                   canViewDashboard={canViewDashboard}
+                  canManageSite={canManageSite}
                   onViewDashboard={handleSelectSite}
+                  onEdit={(target) => {
+                    setError(undefined);
+                    setEditSite(target);
+                  }}
+                  onDelete={(target) => {
+                    setDeleteError(undefined);
+                    setDeleteTarget(target);
+                  }}
                 />
               ))}
             </div>
@@ -449,6 +578,52 @@ export default function SiteManagementPage() {
         onOpenChange={setCreateOpen}
         onSubmit={handleCreateSubmit}
         supervisors={availableSupervisors}
+        mode="create"
+      />
+
+      <CreateSiteModal
+        open={editSite != null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setEditSite(null);
+          }
+        }}
+        onSubmit={handleEditSubmit}
+        supervisors={editSupervisors}
+        mode="edit"
+        site={editSite ?? undefined}
+      />
+
+      <ConfirmationModalComponent
+        open={deleteTarget != null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeleteTarget(null);
+            setDeleteError(undefined);
+          }
+        }}
+        title="Hapus Site"
+        description={
+          deleteTarget ? (
+            <>
+              Apakah anda yakin untuk menghapus site{' '}
+              <span style={{ color: '#2563EB', textDecoration: 'underline', fontWeight: 600 }}>
+                {deleteTarget.name}
+              </span>
+              ?
+              {deleteError ? (
+                <span className="mt-2 block text-sm" style={{ color: COLORS.primary }}>
+                  {deleteError}
+                </span>
+              ) : null}
+            </>
+          ) : null
+        }
+        confirmLabel={isDeleting ? 'Menghapus…' : 'Hapus Site'}
+        cancelLabel="Kembali"
+        confirmDisabled={isDeleting}
+        closeOnConfirm={false}
+        onConfirm={() => void onConfirmDelete()}
       />
     </div>
   );

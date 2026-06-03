@@ -5,9 +5,11 @@ import {
   Button,
   ConfirmationModalComponent,
   DataTable,
+  DataTableSkeleton,
   type DataTableColumnDef,
   SearchFilterBar,
 } from '../components/ui';
+import { useTableLoading } from '../lib/use-table-loading';
 import { COLORS } from '../constants/colors';
 import {
   deleteReport,
@@ -104,8 +106,9 @@ export default function ReportPage() {
   const [search, setSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [rows, setRows] = useState<ReportRow[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | undefined>();
+  const reportLoadKey = selectedSite?.id ?? 'all';
+  const { showSkeleton, startLoad, finishLoad } = useTableLoading(reportLoadKey);
   const [deleteTarget, setDeleteTarget] = useState<ReportRow | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | undefined>();
@@ -116,7 +119,7 @@ export default function ReportPage() {
     let cancelled = false;
 
     async function loadReports() {
-      setIsLoading(true);
+      startLoad();
       setError(undefined);
 
       try {
@@ -140,7 +143,7 @@ export default function ReportPage() {
         }
       } finally {
         if (!cancelled) {
-          setIsLoading(false);
+          finishLoad(reportLoadKey);
         }
       }
     }
@@ -150,7 +153,7 @@ export default function ReportPage() {
     return () => {
       cancelled = true;
     };
-  }, [hasSelectedSite, selectedSite?.id]);
+  }, [finishLoad, hasSelectedSite, reportLoadKey, selectedSite?.id, startLoad]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -276,7 +279,7 @@ export default function ReportPage() {
             size="sm"
             leftIcon={<PlusIcon />}
             onClick={() => navigate('/report/upload')}
-            disabled={!hasSelectedSite || isLoading}
+            disabled={!hasSelectedSite || showSkeleton}
           >
             Tambah Data
           </Button>
@@ -296,7 +299,7 @@ export default function ReportPage() {
             placeholder="Cari judul, deskripsi, atau pengunggah"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            disabled={isLoading}
+            disabled={showSkeleton}
           />
         </div>
 
@@ -307,13 +310,12 @@ export default function ReportPage() {
           >
             {error}
           </div>
-        ) : isLoading ? (
-          <div
-            className="rounded-lg border bg-white p-6 text-sm shadow-sm"
-            style={{ borderColor: COLORS.border, color: COLORS.textSecondary }}
-          >
-            Memuat data laporan...
-          </div>
+        ) : showSkeleton ? (
+          <DataTableSkeleton
+            variant="document"
+            loadingLabel="Memuat data laporan…"
+            showPaginationFooter
+          />
         ) : (
           <DataTable
             columns={REPORT_TABLE_COLUMNS}

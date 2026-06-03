@@ -15,6 +15,19 @@
   --spacing-page-x: 3.375rem;
 
   --animate-data-table-empty: data-table-empty-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-skeleton: skeleton-wave 1.4s ease-in-out infinite;
+
+  --color-skeleton: #cbd5e1;
+  --color-skeleton-track: #e2e8f0;
+
+  @keyframes skeleton-wave {
+    0% {
+      background-position: 200% 0;
+    }
+    100% {
+      background-position: -200% 0;
+    }
+  }
 
   @keyframes data-table-empty-in {
     from {

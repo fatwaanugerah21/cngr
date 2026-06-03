@@ -27,6 +27,10 @@ export const COLORS = {
   /** Unfocused text, select, and picker trigger fields */
   inputBackground: '#F8F8F8',
 
+  /** Loading skeleton blocks */
+  skeleton: '#CBD5E1',
+  skeletonTrack: '#E2E8F0',
+
   // Sidebar
   sidebarBg: '#0a1628',
   sidebarText: '#FFFFFF',

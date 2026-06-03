@@ -4,6 +4,7 @@ import type { FormSelectOption } from '../forms/FormSelectField';
 import { Button } from '../ui';
 import Modal from '../ui/Modal';
 import { COLORS } from '../../constants/colors';
+import type { SiteRecord } from '../../data/sites-dummy';
 import type { UserManagementRecord } from 'src/lib/cngr-api';
 
 export type CreateSitePayload = {
@@ -14,11 +15,15 @@ export type CreateSitePayload = {
   location: string;
 };
 
+export type SiteFormMode = 'create' | 'edit';
+
 interface CreateSiteModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmit: (payload: CreateSitePayload) => void | Promise<void>;
-  supervisors: UserManagementRecord[]
+  supervisors: UserManagementRecord[];
+  mode?: SiteFormMode;
+  site?: SiteRecord;
 }
 
 function ClipboardGlyph() {
@@ -43,7 +48,25 @@ const emptyForm = {
   location: '',
 };
 
-export default function CreateSiteModal({ open, onOpenChange, onSubmit, supervisors }: CreateSiteModalProps) {
+function siteToForm(site: SiteRecord): typeof emptyForm {
+  return {
+    siteName: site.name,
+    picValue: site.supervisorId.trim(),
+    city: site.city,
+    province: site.province === '-' ? '' : site.province,
+    location: site.location === '—' ? '' : site.location,
+  };
+}
+
+export default function CreateSiteModal({
+  open,
+  onOpenChange,
+  onSubmit,
+  supervisors,
+  mode = 'create',
+  site,
+}: CreateSiteModalProps) {
+  const isEdit = mode === 'edit';
   const [form, setForm] = useState(emptyForm);
   const [siteNameError, setSiteNameError] = useState<string | undefined>();
   const [picError, setPicError] = useState<string | undefined>();
@@ -62,12 +85,12 @@ export default function CreateSiteModal({ open, onOpenChange, onSubmit, supervis
 
   useEffect(() => {
     if (open) {
-      setForm(emptyForm);
+      setForm(isEdit && site ? siteToForm(site) : emptyForm);
       setSiteNameError(undefined);
       setPicError(undefined);
       setIsSubmitting(false);
     }
-  }, [open]);
+  }, [open, isEdit, site]);
 
   const handleSubmit = async () => {
     const name = form.siteName.trim();
@@ -107,7 +130,7 @@ export default function CreateSiteModal({ open, onOpenChange, onSubmit, supervis
             Data Site
           </h2>
           <p className="mt-0.5 text-xs" style={{ color: COLORS.textSecondary }}>
-            Modal untuk tambah data site
+            {isEdit ? 'Modal untuk ubah data site' : 'Modal untuk tambah data site'}
           </p>
         </div>
       </div>
@@ -155,14 +178,16 @@ export default function CreateSiteModal({ open, onOpenChange, onSubmit, supervis
           value={form.location}
           onChange={(e) => setForm((f) => ({ ...f, location: e.target.value }))}
         />
-        <div
-          className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2.5 text-xs leading-relaxed text-blue-900"
-          role="note"
-        >
-          Status site yang dibuat akan memiliki status active, anda dapat mengubah status di halaman depan master data
-        </div>
+        {!isEdit ? (
+          <div
+            className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2.5 text-xs leading-relaxed text-blue-900"
+            role="note"
+          >
+            Status site yang dibuat akan memiliki status active, anda dapat mengubah status di halaman depan master data
+          </div>
+        ) : null}
         <Button type="button" variant="submit" size="md" fullWidth onClick={handleSubmit} disabled={isSubmitting}>
-          {isSubmitting ? 'Menyimpan…' : 'Simpan Data'}
+          {isSubmitting ? 'Menyimpan…' : isEdit ? 'Simpan Perubahan' : 'Simpan Data'}
         </Button>
       </div>
     </Modal>

@@ -1,6 +1,6 @@
 import type { CSSProperties, ReactNode } from 'react';
 import { COLORS } from '../../constants/colors';
-import { formatNumberDisplay, formatTableDate } from '../../lib/formatters';
+import { formatAmountWithSuffix, formatTableDate } from '../../lib/formatters';
 import DeleteRowIcon from '../../icons/delete-row.icon';
 import DownloadIcon from '../../icons/download.icon';
 import PencilIcon from '../../icons/pencil.icon';
@@ -39,6 +39,8 @@ export type DataTableColumnDef<Row extends Record<string, unknown>> =
   | (DataTableColumnBase & {
     kind: 'number';
     accessorKey: StringKey<Row>;
+    /** Appended to formatted values (e.g. Ton, Hektar). */
+    unitSuffix?: string;
     tone?: 'primary' | 'secondary';
     /** @default 'normal' */
     fontWeight?: 'normal' | 'semibold';
@@ -255,7 +257,7 @@ function renderCell<Row extends Record<string, unknown>>(
     }
     case 'number': {
       const numericValue = getNumber(row, column.accessorKey);
-      const text = formatNumberDisplay(numericValue);
+      const text = formatAmountWithSuffix(numericValue, column.unitSuffix);
       const isSecondary = column.tone === 'secondary';
       const weightClass = column.fontWeight === 'semibold' ? 'font-semibold' : 'font-normal';
       return (

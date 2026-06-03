@@ -82,6 +82,34 @@ export const TREND_VIEW_TARGET_BAR_COLORS: Record<TrendView, string> = {
   'rehab-das': '#93C5FD',
 };
 
+export const TREND_VIEW_UNIT_SUFFIX: Record<TrendView, string> = {
+  production: 'Ton',
+  'land-opening': 'Hektar',
+  reclamation: 'Hektar',
+  'rehab-das': 'Ton',
+};
+
+const TREND_VIEW_LABEL_UNIT_SUFFIX: Record<string, string> = Object.fromEntries(
+  TREND_VIEW_OPTIONS.map((option) => [option.label, TREND_VIEW_UNIT_SUFFIX[option.value]])
+);
+
+export function getUnitSuffixForCategoryLabel(categoryLabel: string): string {
+  return TREND_VIEW_LABEL_UNIT_SUFFIX[categoryLabel] ?? '';
+}
+
+export function getUnitSuffixForTrendView(view: TrendView): string {
+  return TREND_VIEW_UNIT_SUFFIX[view];
+}
+
+export function getUnitSuffixForKpiId(kpiId: string): string {
+  for (const view of TREND_VIEWS) {
+    if (kpiId === `${view}-target` || kpiId === `${view}-achieved`) {
+      return TREND_VIEW_UNIT_SUFFIX[view];
+    }
+  }
+  return '';
+}
+
 export type TrendViewBundle = {
   targetVsRealisasi: MonthlyTargetRealization[];
   realisasiTrend: MonthlyRealization[];
@@ -147,6 +175,85 @@ function sumTargetAndActual(activityRows: ProductionRecord[]): { totalTarget: nu
 
 export function getKpisForAllViews(trendViews: Record<TrendView, TrendViewBundle>): SiteDashboardKpi[] {
   return TREND_VIEWS.flatMap((view) => getKpisForTrendView(view, trendViews[view].activityRows));
+}
+
+export function collectDashboardYearOptions(
+  trendViews: Record<TrendView, TrendViewBundle>
+): StatusHistoryMonthOption[] {
+  const years = new Set<number>();
+
+  for (const view of TREND_VIEWS) {
+    const bundle = trendViews[view];
+    for (const row of bundle.activityRows) {
+      const date = parseDate(row.date);
+      if (date) {
+        years.add(date.getFullYear());
+      }
+    }
+    for (const point of bundle.trendPoints) {
+      const date = parseDate(point.date);
+      if (date) {
+        years.add(date.getFullYear());
+      }
+    }
+  }
+
+  return [...years]
+    .sort((a, b) => b - a)
+    .map((year) => ({ value: String(year), label: String(year) }));
+}
+
+export function getCurrentCalendarYearString(): string {
+  return String(new Date().getFullYear());
+}
+
+export function resolveDefaultDashboardYear(
+  yearOptions: StatusHistoryMonthOption[],
+  currentSelection = getCurrentCalendarYearString()
+): string {
+  if (currentSelection && yearOptions.some((option) => option.value === currentSelection)) {
+    return currentSelection;
+  }
+
+  const currentYear = getCurrentCalendarYearString();
+  if (yearOptions.some((option) => option.value === currentYear)) {
+    return currentYear;
+  }
+
+  return yearOptions[0]?.value ?? currentYear;
+}
+
+function filterActivityRowsByYear(activityRows: ProductionRecord[], year: number): ProductionRecord[] {
+  return activityRows.filter((row) => {
+    const date = parseDate(row.date);
+    return date?.getFullYear() === year;
+  });
+}
+
+function filterTrendPointsByYear(points: DashboardTrendPoint[], year: number): DashboardTrendPoint[] {
+  return points.filter((point) => {
+    const date = parseDate(point.date);
+    return date?.getFullYear() === year;
+  });
+}
+
+export function getTrendViewBundleForYear(bundle: TrendViewBundle, year: number): TrendViewBundle {
+  return buildTrendViewBundle(
+    filterTrendPointsByYear(bundle.trendPoints, year),
+    filterActivityRowsByYear(bundle.activityRows, year)
+  );
+}
+
+export function getTrendViewsForYear(
+  trendViews: Record<TrendView, TrendViewBundle>,
+  year: number
+): Record<TrendView, TrendViewBundle> {
+  return {
+    production: getTrendViewBundleForYear(trendViews.production, year),
+    'land-opening': getTrendViewBundleForYear(trendViews['land-opening'], year),
+    'rehab-das': getTrendViewBundleForYear(trendViews['rehab-das'], year),
+    reclamation: getTrendViewBundleForYear(trendViews.reclamation, year),
+  };
 }
 
 export function mergeAllStatusHistoryMonthOptions(
@@ -467,6 +574,8 @@ function buildStatusHistory(activityRows: ProductionRecord[]): {
       monthValue,
       row: {
         date: formatStatusDate(date),
+        target: record.target,
+        realization: record.realization,
         efficiency: parseEfficiencyPercent(record.efficiency),
         status: mapApiStatus(record.status),
       },
@@ -515,6 +624,8 @@ export function filterStatusHistoryByMonth(
 
     filtered.push({
       date: formatStatusDate(date),
+      target: record.target,
+      realization: record.realization,
       efficiency: parseEfficiencyPercent(record.efficiency),
       status: mapApiStatus(record.status),
     });

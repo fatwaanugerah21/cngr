@@ -1,32 +1,36 @@
 import { useEffect, useState } from 'react';
-import { AccountSectionCard, InfoField, InfoFieldGrid } from '../../components/account';
+import { AccountProfileSkeleton, AccountSectionCard, InfoField, InfoFieldGrid } from '../../components/account';
 import { COLORS } from '../../constants/colors';
 import { fetchCurrentAccountProfile, type AccountProfileData } from '../../lib/cngr-api';
 import { useAuth } from '../../lib/auth-context';
+import { useTableLoading } from '../../lib/use-table-loading';
 
 export default function UserAccountPage() {
   const { user: currentUser, isInitializing, setCurrentUser } = useAuth();
   const [profile, setProfile] = useState<AccountProfileData | undefined>();
-  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | undefined>();
+  const profileLoadKey = currentUser?.id?.trim() ?? '';
+  const { showSkeleton, startLoad, finishLoad, resetLoad } = useTableLoading(profileLoadKey, {
+    initialLoading: true,
+  });
 
   useEffect(() => {
     if (isInitializing) {
       return;
     }
 
-    const userId = currentUser?.id?.trim() ?? '';
+    const userId = profileLoadKey;
     if (userId === '') {
       setProfile(undefined);
       setError('Data akun tidak tersedia.');
-      setIsLoading(false);
+      resetLoad();
       return;
     }
 
     let cancelled = false;
 
     async function loadProfile() {
-      setIsLoading(true);
+      startLoad();
       setError(undefined);
 
       try {
@@ -50,7 +54,7 @@ export default function UserAccountPage() {
         }
       } finally {
         if (!cancelled) {
-          setIsLoading(false);
+          finishLoad(userId);
         }
       }
     }
@@ -60,16 +64,10 @@ export default function UserAccountPage() {
     return () => {
       cancelled = true;
     };
-  }, [currentUser?.id, currentUser?.role, isInitializing, setCurrentUser]);
+  }, [finishLoad, isInitializing, profileLoadKey, resetLoad, setCurrentUser, startLoad]);
 
-  if (isInitializing || isLoading) {
-    return (
-      <div className="rounded-2xl border bg-white p-6 shadow-sm" style={{ borderColor: COLORS.border }}>
-        <p className="text-sm" style={{ color: COLORS.textSecondary }}>
-          Memuat data akun...
-        </p>
-      </div>
-    );
+  if (isInitializing || showSkeleton) {
+    return <AccountProfileSkeleton loadingLabel="Memuat data akun…" />;
   }
 
   if (!profile) {
@@ -83,7 +81,7 @@ export default function UserAccountPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 opacity-100 transition-opacity duration-300 ease-out motion-reduce:transition-none">
       <AccountSectionCard
         step={1}
         title="Informasi pribadi"

@@ -5,9 +5,11 @@ import {
   Button,
   ConfirmationModalComponent,
   DataTable,
+  DataTableSkeleton,
   type DataTableColumnDef,
   SearchFilterBar,
 } from '../components/ui';
+import { useSiteTableLoading } from '../lib/use-site-table-loading';
 import { COLORS } from '../constants/colors';
 import { useSite } from '../lib/site-context';
 import {
@@ -16,6 +18,8 @@ import {
   type LandOpeningEditState,
   type ProductionRecord,
 } from '../lib/cngr-api';
+import { TREND_VIEW_UNIT_SUFFIX } from '../lib/site-dashboard-api';
+
 type LandOpeningRow = {
   id: string;
   date: string;
@@ -55,9 +59,22 @@ const TABLE_COLUMNS: DataTableColumnDef<LandOpeningRow>[] = [
     accessorKey: 'date',
     sortable: true,
   },
-  { id: 'site', header: 'Lahan', kind: 'text', accessorKey: 'site', sortable: true },
-  { id: 'target', header: 'Target', kind: 'number', accessorKey: 'target', sortable: true },
-  { id: 'realization', header: 'Realisasi', kind: 'number', accessorKey: 'realization', sortable: true },
+  {
+    id: 'target',
+    header: 'Target',
+    kind: 'number',
+    accessorKey: 'target',
+    unitSuffix: TREND_VIEW_UNIT_SUFFIX['land-opening'],
+    sortable: true,
+  },
+  {
+    id: 'realization',
+    header: 'Realisasi',
+    kind: 'number',
+    accessorKey: 'realization',
+    unitSuffix: TREND_VIEW_UNIT_SUFFIX['land-opening'],
+    sortable: true,
+  },
   {
     id: 'efficiency',
     header: 'Efisiensi',
@@ -107,8 +124,8 @@ export default function LandOpeningPage() {
   const [deleteTarget, setDeleteTarget] = useState<LandOpeningRow | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | undefined>();
-  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | undefined>();
+  const { showSkeleton, startLoad, finishLoad, resetForNoSite } = useSiteTableLoading(selectedSite?.id);
 
   useEffect(() => {
     let cancelled = false;
@@ -116,12 +133,12 @@ export default function LandOpeningPage() {
     async function loadLandOpening() {
       if (!selectedSite?.id) {
         setRows([]);
-        setIsLoading(false);
+        resetForNoSite();
         setError(undefined);
         return;
       }
 
-      setIsLoading(true);
+      startLoad();
       setError(undefined);
       try {
         const landOpening = await listLandOpeningBySite(selectedSite.id);
@@ -144,7 +161,9 @@ export default function LandOpeningPage() {
           setRows([]);
         }
       } finally {
-        if (!cancelled) setIsLoading(false);
+        if (!cancelled) {
+          finishLoad(selectedSite.id);
+        }
       }
     }
 
@@ -153,7 +172,7 @@ export default function LandOpeningPage() {
     return () => {
       cancelled = true;
     };
-  }, [selectedSite?.id, selectedSite?.name]);
+  }, [selectedSite?.id, selectedSite?.name, finishLoad, resetForNoSite, startLoad]);
 
   const filteredRows = useMemo(() => {
     const keyword = search.trim().toLowerCase();
@@ -205,7 +224,7 @@ export default function LandOpeningPage() {
             size="sm"
             leftIcon={<PlusIcon />}
             onClick={() => navigate('/land-opening/add')}
-            disabled={!hasSelectedSite || isLoading}
+            disabled={!hasSelectedSite || showSkeleton}
           >
             Tambah Bukaan Lahan
           </Button>
@@ -226,7 +245,7 @@ export default function LandOpeningPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             filterLabel="Filters"
-            disabled={!hasSelectedSite || isLoading}
+            disabled={!hasSelectedSite || showSkeleton}
           />
         </div>
 
@@ -237,13 +256,8 @@ export default function LandOpeningPage() {
           >
             {error}
           </div>
-        ) : isLoading ? (
-          <div
-            className="rounded-lg border bg-white p-6 text-sm shadow-sm"
-            style={{ borderColor: COLORS.border, color: COLORS.textSecondary }}
-          >
-            Memuat data bukaan lahan...
-          </div>
+        ) : showSkeleton ? (
+          <DataTableSkeleton loadingLabel="Memuat data bukaan lahan…" />
         ) : (
           <DataTable
             columns={TABLE_COLUMNS}

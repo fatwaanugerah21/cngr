@@ -15,7 +15,7 @@ import {
 import type { BarRectangleItem } from 'recharts';
 import mainImage from '../assets/main-image.jpg';
 import { FormSelectField, type FormSelectOption } from '../components/forms';
-import { Button, ConfirmationModalComponent } from '../components/ui';
+import { Button, ConfirmationModalComponent, Skeleton } from '../components/ui';
 import { COLORS } from '../constants/colors';
 import { type SiteDashboardKpi, type StatusHistoryRow } from '../data/site-dashboard-dummy';
 import { useAuth } from '../lib/auth-context';
@@ -28,6 +28,9 @@ import {
   resolveSelectedSiteDisplayName,
 } from '../lib/navigation-session';
 import {
+  collectDashboardYearOptions,
+  getCurrentCalendarYearString,
+  resolveDefaultDashboardYear,
   DASHBOARD_VIEW_OPTIONS,
   EMPTY_SITE_DASHBOARD,
   filterStatusHistoryByMonth,
@@ -38,6 +41,10 @@ import {
   aggregateDailyTargetRealizationForMonth,
   getMonthLongLabel,
   getTrendViewLabel,
+  getTrendViewsForYear,
+  getUnitSuffixForCategoryLabel,
+  getUnitSuffixForKpiId,
+  getUnitSuffixForTrendView,
   loadSiteDashboard,
   mergeAllStatusHistoryMonthOptions,
   TREND_VIEW_LINE_COLORS,
@@ -48,12 +55,8 @@ import {
   type TrendView,
   type TrendViewBundle,
 } from '../lib/site-dashboard-api';
-import { formatNumberDisplay, formatPercentDisplay } from '../lib/formatters';
+import { formatAmountWithSuffix } from '../lib/formatters';
 import { useSite } from '../lib/site-context';
-
-function chartAxisTickFormatter(value: number): string {
-  return formatNumberDisplay(value);
-}
 
 function chartYAxisMax(values: number[]): number {
   const max = values.reduce((highest, value) => Math.max(highest, value), 0);
@@ -106,6 +109,185 @@ function DashboardCard({
 
 function SiteOverviewDivider({ className = '' }: { className?: string }) {
   return <div className={`shrink-0 ${className}`} style={{ backgroundColor: COLORS.border }} aria-hidden />;
+}
+
+function SiteOverviewCardSkeleton({ showDeleteAction = false }: { showDeleteAction?: boolean }) {
+  return (
+    <div
+      className="overflow-hidden rounded-xl border shadow-sm"
+      style={{ borderColor: COLORS.border, backgroundColor: COLORS.white }}
+      aria-hidden
+    >
+      <div
+        className="h-1 w-full"
+        style={{ background: 'linear-gradient(90deg, #2563EB 0%, #0a1628 100%)' }}
+      />
+      <div className="flex flex-col gap-5 p-5 lg:flex-row lg:items-center lg:gap-6 lg:p-6">
+        <div className="flex min-w-0 flex-1 flex-col gap-3 lg:max-w-[260px]">
+          <Skeleton className="h-3 w-10" />
+          <Skeleton className="h-5 w-40" />
+          <Skeleton className="h-6 w-16 rounded-full" />
+        </div>
+        <SiteOverviewDivider className="h-px w-full lg:h-auto lg:w-px lg:self-stretch" />
+        <div className="grid min-w-0 flex-[1.4] grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6">
+          <div className="space-y-2">
+            <Skeleton className="h-3 w-16" />
+            <Skeleton className="h-4 w-28" />
+          </div>
+          <div className="space-y-2 sm:pl-6">
+            <Skeleton className="h-3 w-16" />
+            <Skeleton className="h-4 w-full max-w-[200px]" />
+          </div>
+        </div>
+        <SiteOverviewDivider className="h-px w-full lg:h-auto lg:w-px lg:self-stretch" />
+        <div className="flex min-w-0 flex-1 items-center gap-3.5">
+          <Skeleton className="h-12 w-12 shrink-0 rounded-full" />
+          <div className="min-w-0 flex-1 space-y-2">
+            <Skeleton className="h-3 w-20" />
+            <Skeleton className="h-4 w-36" />
+            <Skeleton className="h-3 w-28" />
+            <Skeleton className="h-3 w-24" />
+          </div>
+        </div>
+        {showDeleteAction ? (
+          <>
+            <SiteOverviewDivider className="h-px w-full lg:h-auto lg:w-px lg:self-stretch" />
+            <div className="flex shrink-0 lg:pl-1">
+              <Skeleton className="h-10 w-full min-w-[120px] rounded-lg sm:w-28" />
+            </div>
+          </>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function DashboardFiltersSkeleton() {
+  return (
+    <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end" aria-hidden>
+      <div className="w-full space-y-2 sm:max-w-xs">
+        <Skeleton className="h-3 w-20" />
+        <Skeleton className="h-10 w-full rounded-lg" />
+      </div>
+      <div className="w-full space-y-2 sm:max-w-xs">
+        <Skeleton className="h-3 w-12" />
+        <Skeleton className="h-10 w-full rounded-lg" />
+      </div>
+    </div>
+  );
+}
+
+function SummaryKpiCardSkeleton() {
+  return (
+    <div
+      className="flex flex-col rounded-xl border p-5 shadow-sm"
+      style={{ borderColor: COLORS.border, backgroundColor: COLORS.white }}
+      aria-hidden
+    >
+      <div className="flex items-start gap-3">
+        <Skeleton className="h-11 w-11 shrink-0 rounded-lg" />
+        <div className="min-w-0 flex-1 space-y-2">
+          <Skeleton className="h-3 w-24" />
+          <Skeleton className="h-8 w-32" />
+        </div>
+      </div>
+      <Skeleton className="mt-4 h-3 w-20" />
+    </div>
+  );
+}
+
+function StatusHistoryTableSkeleton() {
+  return (
+    <div className="space-y-3" aria-hidden>
+      <div className="flex gap-6 border-b pb-3" style={{ borderColor: COLORS.border }}>
+        <Skeleton className="h-3 w-16" />
+        <Skeleton className="h-3 w-14" />
+        <Skeleton className="h-3 w-14" />
+        <Skeleton className="h-3 w-16" />
+      </div>
+      {Array.from({ length: 5 }, (_, index) => (
+        <div key={index} className="flex gap-6 border-t py-2.5" style={{ borderColor: COLORS.border }}>
+          <Skeleton className="h-4 w-20" />
+          <Skeleton className="h-4 w-24" />
+          <Skeleton className="h-4 w-16" />
+          <Skeleton className="h-4 w-16" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ChartCardSkeleton() {
+  return (
+    <div
+      className="flex flex-col rounded-xl border p-5 shadow-sm"
+      style={{ borderColor: COLORS.border, backgroundColor: COLORS.white }}
+      aria-hidden
+    >
+      <Skeleton className="mb-4 h-4 w-48 max-w-full" />
+      <Skeleton className="h-64 w-full rounded-lg" />
+    </div>
+  );
+}
+
+function SiteDashboardBodySkeleton({
+  isAllView,
+  showDeleteAction,
+}: {
+  isAllView: boolean;
+  showDeleteAction: boolean;
+}) {
+  const kpiCount = isAllView ? 4 : 2;
+  const chartSectionCount = isAllView ? 4 : 1;
+
+  return (
+    <div
+      className="flex flex-col gap-6 p-6 lg:p-8"
+      role="status"
+      aria-busy="true"
+      aria-label="Loading dashboard"
+    >
+      <span className="sr-only">Memuat data dashboard…</span>
+
+      <SiteOverviewCardSkeleton showDeleteAction={showDeleteAction} />
+
+      <DashboardFiltersSkeleton />
+
+      <div
+        className={`grid grid-cols-1 gap-4 ${isAllView ? 'sm:grid-cols-2 xl:grid-cols-4' : 'sm:grid-cols-2'}`}
+      >
+        {Array.from({ length: kpiCount }, (_, index) => (
+          <SummaryKpiCardSkeleton key={index} />
+        ))}
+      </div>
+
+      <div className="flex flex-col gap-6">
+        <div
+          className="flex flex-col rounded-xl border p-5 shadow-sm"
+          style={{ borderColor: COLORS.border, backgroundColor: COLORS.white }}
+        >
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <Skeleton className="h-4 w-28" />
+            <div className="w-full space-y-2 sm:w-48">
+              <Skeleton className="h-3 w-10" />
+              <Skeleton className="h-10 w-full rounded-lg" />
+            </div>
+          </div>
+          <StatusHistoryTableSkeleton />
+        </div>
+
+        {Array.from({ length: chartSectionCount }, (_, sectionIndex) => (
+          <div
+            key={sectionIndex}
+            className={`grid grid-cols-1 gap-6 lg:grid-cols-2 ${chartSectionCount > 1 ? 'pt-2' : ''}`}
+          >
+            <ChartCardSkeleton />
+            <ChartCardSkeleton />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 function SiteOverviewCard({
@@ -281,6 +463,8 @@ function KpiIcon({ id, color }: { id: string; color: string }) {
 }
 
 function SummaryKpiCard({ kpi }: { kpi: SiteDashboardKpi }) {
+  const unitSuffix = getUnitSuffixForKpiId(kpi.id);
+
   return (
     <div
       className="flex flex-col rounded-xl border p-5 shadow-sm"
@@ -298,7 +482,7 @@ function SummaryKpiCard({ kpi }: { kpi: SiteDashboardKpi }) {
             {kpi.title}
           </p>
           <p className="mt-1 text-2xl font-bold tracking-tight" style={{ color: COLORS.textPrimary }}>
-            {formatNumberDisplay(kpi.value)}
+            {formatAmountWithSuffix(kpi.value, unitSuffix)}
           </p>
         </div>
       </div>
@@ -307,12 +491,6 @@ function SummaryKpiCard({ kpi }: { kpi: SiteDashboardKpi }) {
       </p>
     </div>
   );
-}
-
-function statusDotColor(status: StatusHistoryRow['status']): string {
-  if (status === 'Good') return '#22C55E';
-  if (status === 'Warn') return '#F59E0B';
-  return '#EF4444';
 }
 
 function SiteDashboardHero({
@@ -377,12 +555,22 @@ function ChartTooltip({
   active,
   payload,
   label,
+  unitSuffix,
 }: {
   active?: boolean;
-  payload?: { name?: string; value?: number; color?: string }[];
+  payload?: { name?: string; dataKey?: string; value?: number; color?: string }[];
   label?: string;
+  unitSuffix?: string;
 }) {
   if (!active || !payload?.length) {
+    return null;
+  }
+
+  const visibleEntries = payload.filter(
+    (entry) => entry.dataKey !== 'clickHelper' && entry.name !== 'clickHelper'
+  );
+
+  if (visibleEntries.length === 0) {
     return null;
   }
 
@@ -394,10 +582,13 @@ function ChartTooltip({
       <p className="mb-1 font-semibold" style={{ color: COLORS.textPrimary }}>
         {label}
       </p>
-      {payload.map((entry) => (
-        <p key={entry.name} style={{ color: entry.color ?? COLORS.textSecondary }}>
+      {visibleEntries.map((entry) => (
+        <p key={entry.name ?? String(entry.dataKey)} style={{ color: entry.color ?? COLORS.textSecondary }}>
           {entry.name}:{' '}
-          {formatNumberDisplay(typeof entry.value === 'number' ? entry.value : Number(entry.value))}
+          {formatAmountWithSuffix(
+            typeof entry.value === 'number' ? entry.value : Number(entry.value),
+            unitSuffix
+          )}
         </p>
       ))}
     </div>
@@ -407,53 +598,62 @@ function ChartTooltip({
 function StatusHistoryTable({
   rows,
   showCategory,
+  unitSuffix,
 }: {
   rows: StatusHistoryRow[] | StatusHistoryRowWithCategory[];
   showCategory?: boolean;
+  unitSuffix?: string;
 }) {
+  const columnCount = (showCategory ? 1 : 0) + 5;
+
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[240px] text-left text-xs">
+      <table className="w-full min-w-[480px] text-left text-xs">
         <thead>
           <tr style={{ color: COLORS.textMuted }}>
             {showCategory ? <th className="pb-3 font-medium">Kategori</th> : null}
             <th className="pb-3 font-medium">Tanggal</th>
-            <th className="pb-3 font-medium">Efficiency</th>
-            <th className="pb-3 font-medium">Status</th>
+            <th className="pb-3 font-medium">Target</th>
+            <th className="pb-3 font-medium">Realisasi</th>
           </tr>
         </thead>
         <tbody>
           {rows.length === 0 ? (
             <tr>
-              <td colSpan={showCategory ? 4 : 3} className="py-6 text-center" style={{ color: COLORS.textMuted }}>
+              <td colSpan={columnCount} className="py-6 text-center" style={{ color: COLORS.textMuted }}>
                 Belum ada riwayat status.
               </td>
             </tr>
           ) : (
-            rows.map((row, index) => (
-              <tr key={`${'category' in row ? row.category : ''}-${row.date}-${index}`} className="border-t" style={{ borderColor: COLORS.border }}>
-                {showCategory && 'category' in row ? (
-                  <td className="py-2.5 font-medium" style={{ color: COLORS.textSecondary }}>
-                    {row.category}
+            rows.map((row, index) => {
+              const rowSuffix =
+                showCategory && 'category' in row
+                  ? getUnitSuffixForCategoryLabel(row.category)
+                  : unitSuffix ?? '';
+
+              return (
+                <tr
+                  key={`${'category' in row ? row.category : ''}-${row.date}-${index}`}
+                  className="border-t"
+                  style={{ borderColor: COLORS.border }}
+                >
+                  {showCategory && 'category' in row ? (
+                    <td className="py-2.5 font-medium" style={{ color: COLORS.textSecondary }}>
+                      {row.category}
+                    </td>
+                  ) : null}
+                  <td className="py-2.5" style={{ color: COLORS.textPrimary }}>
+                    {row.date}
                   </td>
-                ) : null}
-                <td className="py-2.5" style={{ color: COLORS.textPrimary }}>
-                  {row.date}
-                </td>
-                <td className="py-2.5 font-semibold" style={{ color: COLORS.textPrimary }}>
-                  {formatPercentDisplay(row.efficiency)}
-                </td>
-                <td className="py-2.5">
-                  <span className="inline-flex items-center gap-2">
-                    <span
-                      className="h-2 w-2 shrink-0 rounded-full"
-                      style={{ backgroundColor: statusDotColor(row.status) }}
-                    />
-                    <span style={{ color: COLORS.textSecondary }}>{row.status}</span>
-                  </span>
-                </td>
-              </tr>
-            ))
+                  <td className="py-2.5 tabular-nums" style={{ color: COLORS.textPrimary }}>
+                    {formatAmountWithSuffix(row.target, rowSuffix)}
+                  </td>
+                  <td className="py-2.5 tabular-nums font-semibold" style={{ color: COLORS.textPrimary }}>
+                    {formatAmountWithSuffix(row.realization, rowSuffix)}
+                  </td>
+                </tr>
+              );
+            })
           )}
         </tbody>
       </table>
@@ -480,6 +680,11 @@ function CategoryTrendCharts({
 
   const lineColor = TREND_VIEW_LINE_COLORS[view];
   const targetBarColor = TREND_VIEW_TARGET_BAR_COLORS[view];
+  const unitSuffix = getUnitSuffixForTrendView(view);
+  const chartAxisTickFormatter = useCallback(
+    (value: number) => formatAmountWithSuffix(value, unitSuffix),
+    [unitSuffix]
+  );
   const categoryLabel = getTrendViewLabel(view);
   const targetTitleBase = showCategoryInTitle
     ? `${categoryLabel} — Target vs Realisasi`
@@ -567,7 +772,7 @@ function CategoryTrendCharts({
                 domain={[0, targetVsRealisasiYMax]}
                 tickFormatter={chartAxisTickFormatter}
               />
-              <Tooltip content={<ChartTooltip />} />
+              <Tooltip content={<ChartTooltip unitSuffix={unitSuffix} />} />
               <Legend wrapperStyle={{ fontSize: 11 }} />
               <Bar
                 dataKey="target"
@@ -607,7 +812,7 @@ function CategoryTrendCharts({
                 domain={[0, realisasiTrendYMax]}
                 tickFormatter={chartAxisTickFormatter}
               />
-              <Tooltip content={<ChartTooltip />} />
+              <Tooltip content={<ChartTooltip unitSuffix={unitSuffix} />} />
               <Legend wrapperStyle={{ fontSize: 11 }} />
               {!isDailyTrendView ? (
                 <Bar
@@ -667,8 +872,10 @@ export default function SiteDashboardPage() {
   const [siteDetail, setSiteDetail] = useState<SiteRecord | undefined>();
   const [dashboard, setDashboard] = useState(EMPTY_SITE_DASHBOARD);
   const [dashboardLoading, setDashboardLoading] = useState(false);
+  const [loadedDashboardSiteId, setLoadedDashboardSiteId] = useState<string | undefined>();
   const [dashboardError, setDashboardError] = useState<string | undefined>();
   const [statusMonth, setStatusMonth] = useState('');
+  const [selectedYear, setSelectedYear] = useState(getCurrentCalendarYearString);
   const [selectedDashboardView, setSelectedDashboardView] = useState<DashboardViewSelection>('all');
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -713,7 +920,10 @@ export default function SiteDashboardPage() {
       if (!selectedSite?.id) {
         setDashboard(EMPTY_SITE_DASHBOARD);
         setStatusMonth('');
+        setSelectedYear(getCurrentCalendarYearString());
         setDashboardError(undefined);
+        setDashboardLoading(false);
+        setLoadedDashboardSiteId(undefined);
         return;
       }
 
@@ -727,7 +937,15 @@ export default function SiteDashboardPage() {
         }
 
         setDashboard(data);
-        const defaultMonthOptions = data.trendViews.production.statusHistoryMonthOptions;
+        const yearOptions = collectDashboardYearOptions(data.trendViews);
+        let defaultYear = getCurrentCalendarYearString();
+        setSelectedYear((current) => {
+          defaultYear = resolveDefaultDashboardYear(yearOptions, current);
+          return defaultYear;
+        });
+        const defaultMonthOptions = defaultYear
+          ? getTrendViewsForYear(data.trendViews, Number(defaultYear)).production.statusHistoryMonthOptions
+          : data.trendViews.production.statusHistoryMonthOptions;
         setStatusMonth((current) => {
           if (current && defaultMonthOptions.some((option) => option.value === current)) {
             return current;
@@ -738,11 +956,13 @@ export default function SiteDashboardPage() {
         if (!cancelled) {
           setDashboard(EMPTY_SITE_DASHBOARD);
           setStatusMonth('');
+          setSelectedYear(getCurrentCalendarYearString());
           setDashboardError(err instanceof Error ? err.message : 'Gagal memuat data dashboard.');
         }
       } finally {
         if (!cancelled) {
           setDashboardLoading(false);
+          setLoadedDashboardSiteId(selectedSite.id);
         }
       }
     }
@@ -755,20 +975,43 @@ export default function SiteDashboardPage() {
 
   const isAllView = selectedDashboardView === 'all';
 
+  const showDashboardSkeleton = Boolean(
+    selectedSite?.id && (dashboardLoading || loadedDashboardSiteId !== selectedSite.id)
+  );
+
+  const dashboardYearOptions = useMemo(
+    () => collectDashboardYearOptions(dashboard.trendViews),
+    [dashboard.trendViews]
+  );
+
+  const parsedSelectedYear = Number(selectedYear);
+  const hasValidSelectedYear = Number.isFinite(parsedSelectedYear);
+
+  const yearFilteredTrendViews = useMemo(() => {
+    if (!hasValidSelectedYear) {
+      return dashboard.trendViews;
+    }
+    return getTrendViewsForYear(dashboard.trendViews, parsedSelectedYear);
+  }, [dashboard.trendViews, hasValidSelectedYear, parsedSelectedYear]);
+
   const selectedTrendData = useMemo(() => {
     if (isAllView) {
-      return dashboard.trendViews.production;
+      return yearFilteredTrendViews.production;
     }
-    return dashboard.trendViews[selectedDashboardView];
-  }, [dashboard.trendViews, isAllView, selectedDashboardView]);
+    return yearFilteredTrendViews[selectedDashboardView];
+  }, [isAllView, selectedDashboardView, yearFilteredTrendViews]);
 
   const statusHistoryMonthOptions = useMemo(
     () =>
       isAllView
-        ? mergeAllStatusHistoryMonthOptions(dashboard.trendViews)
+        ? mergeAllStatusHistoryMonthOptions(yearFilteredTrendViews)
         : selectedTrendData.statusHistoryMonthOptions,
-    [dashboard.trendViews, isAllView, selectedTrendData.statusHistoryMonthOptions]
+    [isAllView, selectedTrendData.statusHistoryMonthOptions, yearFilteredTrendViews]
   );
+
+  useEffect(() => {
+    setSelectedYear((current) => resolveDefaultDashboardYear(dashboardYearOptions, current));
+  }, [dashboardYearOptions]);
 
   useEffect(() => {
     setStatusMonth((current) => {
@@ -777,7 +1020,7 @@ export default function SiteDashboardPage() {
       }
       return statusHistoryMonthOptions[0]?.value ?? '';
     });
-  }, [selectedDashboardView, statusHistoryMonthOptions]);
+  }, [selectedDashboardView, selectedYear, statusHistoryMonthOptions]);
 
   const supervisorName = useMemo(() => {
     const supervisor = dashboard.supervisor;
@@ -802,21 +1045,31 @@ export default function SiteDashboardPage() {
 
   const statusHistoryRows = useMemo(() => {
     if (isAllView) {
-      return getAllStatusHistoryRows(dashboard.trendViews, statusMonth);
+      return getAllStatusHistoryRows(yearFilteredTrendViews, statusMonth);
     }
     return filterStatusHistoryByMonth(
       selectedTrendData.statusHistory,
       selectedTrendData.activityRows,
       statusMonth
     );
-  }, [dashboard.trendViews, isAllView, selectedTrendData.activityRows, selectedTrendData.statusHistory, statusMonth]);
+  }, [
+    isAllView,
+    selectedTrendData.activityRows,
+    selectedTrendData.statusHistory,
+    statusMonth,
+    yearFilteredTrendViews,
+  ]);
+
+  const statusHistoryUnitSuffix = isAllView
+    ? undefined
+    : getUnitSuffixForTrendView(selectedDashboardView);
 
   const selectedKpis = useMemo(() => {
     if (isAllView) {
-      return getKpisForAllViews(dashboard.trendViews);
+      return getKpisForAllViews(yearFilteredTrendViews);
     }
     return getKpisForTrendView(selectedDashboardView, selectedTrendData.activityRows);
-  }, [dashboard.trendViews, isAllView, selectedDashboardView, selectedTrendData.activityRows]);
+  }, [isAllView, selectedDashboardView, selectedTrendData.activityRows, yearFilteredTrendViews]);
 
   const dashboardViewSelectOptions = useMemo<FormSelectOption[]>(
     () => DASHBOARD_VIEW_OPTIONS.map((option) => ({ value: option.value, label: option.label })),
@@ -826,6 +1079,11 @@ export default function SiteDashboardPage() {
   const statusMonthSelectOptions = useMemo<FormSelectOption[]>(
     () => statusHistoryMonthOptions.map((option) => ({ value: option.value, label: option.label })),
     [statusHistoryMonthOptions]
+  );
+
+  const dashboardYearSelectOptions = useMemo<FormSelectOption[]>(
+    () => dashboardYearOptions.map((option) => ({ value: option.value, label: option.label })),
+    [dashboardYearOptions]
   );
 
   const siteStatusLabel = siteDetail?.status === 'inactive' ? 'Inactive' : 'Active';
@@ -850,17 +1108,13 @@ export default function SiteDashboardPage() {
     }
   };
 
-  const dashboardBody = (
-    <div className="flex flex-col gap-6 p-6 lg:p-8">
+  const dashboardBody = showDashboardSkeleton ? (
+    <SiteDashboardBodySkeleton isAllView={isAllView} showDeleteAction={isAdmin} />
+  ) : (
+    <div className="flex flex-col gap-6 p-6 opacity-100 transition-opacity duration-300 ease-out motion-reduce:transition-none lg:p-8">
         {dashboardError ? (
           <p className="rounded-lg border px-4 py-3 text-sm" style={{ borderColor: '#FECACA', color: '#DC2626' }}>
             {dashboardError}
-          </p>
-        ) : null}
-
-        {dashboardLoading ? (
-          <p className="text-sm" style={{ color: COLORS.textSecondary }}>
-            Memuat data dashboard…
           </p>
         ) : null}
 
@@ -883,13 +1137,24 @@ export default function SiteDashboardPage() {
           }}
         />
 
-        <FormSelectField
-          label="Jenis Data"
-          options={dashboardViewSelectOptions}
-          value={selectedDashboardView}
-          onChange={(event) => setSelectedDashboardView(event.target.value as DashboardViewSelection)}
-          className="w-full sm:max-w-xs"
-        />
+        <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end">
+          <FormSelectField
+            label="Jenis Data"
+            options={dashboardViewSelectOptions}
+            value={selectedDashboardView}
+            onChange={(event) => setSelectedDashboardView(event.target.value as DashboardViewSelection)}
+            className="w-full sm:max-w-xs"
+          />
+          {dashboardYearSelectOptions.length > 0 ? (
+            <FormSelectField
+              label="Tahun"
+              options={dashboardYearSelectOptions}
+              value={selectedYear}
+              onChange={(event) => setSelectedYear(event.target.value)}
+              className="w-full sm:max-w-xs"
+            />
+          ) : null}
+        </div>
 
         <div
           className={`grid grid-cols-1 gap-4 ${isAllView ? 'sm:grid-cols-2 xl:grid-cols-4' : 'sm:grid-cols-2'}`}
@@ -914,7 +1179,11 @@ export default function SiteDashboardPage() {
               ) : null
             }
           >
-            <StatusHistoryTable rows={statusHistoryRows} showCategory={isAllView} />
+            <StatusHistoryTable
+              rows={statusHistoryRows}
+              showCategory={isAllView}
+              unitSuffix={statusHistoryUnitSuffix}
+            />
           </DashboardCard>
 
           {isAllView ? (
@@ -923,8 +1192,8 @@ export default function SiteDashboardPage() {
                 <CategoryTrendCharts
                   key={view}
                   view={view}
-                  bundle={dashboard.trendViews[view]}
-                  siteResetKey={selectedSite?.id}
+                  bundle={yearFilteredTrendViews[view]}
+                  siteResetKey={`${selectedSite?.id ?? ''}-${selectedYear}`}
                   showCategoryInTitle
                 />
               ))}
@@ -932,8 +1201,8 @@ export default function SiteDashboardPage() {
           ) : (
             <CategoryTrendCharts
               view={selectedDashboardView}
-              bundle={dashboard.trendViews[selectedDashboardView]}
-              siteResetKey={selectedSite?.id}
+              bundle={yearFilteredTrendViews[selectedDashboardView]}
+              siteResetKey={`${selectedSite?.id ?? ''}-${selectedYear}`}
             />
           )}
         </div>

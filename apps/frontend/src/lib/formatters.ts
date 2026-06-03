@@ -53,6 +53,15 @@ export function formatNumberDisplay(value: number | null | undefined): string {
   return numberDisplayFormatter.format(value);
 }
 
+export function formatAmountWithSuffix(
+  value: number | null | undefined,
+  suffix: string | null | undefined
+): string {
+  const formatted = formatNumberDisplay(value);
+  const trimmedSuffix = suffix?.trim();
+  return trimmedSuffix ? `${formatted} ${trimmedSuffix}` : formatted;
+}
+
 export function formatPercentDisplay(value: number | null | undefined): string {
   if (value == null || !Number.isFinite(value)) {
     return value == null ? '' : String(value);

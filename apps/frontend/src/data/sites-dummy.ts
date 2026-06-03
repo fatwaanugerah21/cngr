@@ -5,6 +5,7 @@ export type SiteRecord = {
   name: string;
   picName: string;
   picAvatar?: string;
+  city: string;
   province: string;
   location: string;
   status: SiteStatus;

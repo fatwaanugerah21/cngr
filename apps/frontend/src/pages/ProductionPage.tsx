@@ -5,9 +5,11 @@ import {
   Button,
   ConfirmationModalComponent,
   DataTable,
+  DataTableSkeleton,
   type DataTableColumnDef,
   SearchFilterBar,
 } from '../components/ui';
+import { useSiteTableLoading } from '../lib/use-site-table-loading';
 import { COLORS } from '../constants/colors';
 import { useSite } from '../lib/site-context';
 import {
@@ -16,6 +18,8 @@ import {
   type ProductionEditState,
   type ProductionRecord,
 } from '../lib/cngr-api';
+import { TREND_VIEW_UNIT_SUFFIX } from '../lib/site-dashboard-api';
+
 type ProductionRow = {
   id: string;
   date: string;
@@ -55,9 +59,22 @@ const TABLE_COLUMNS: DataTableColumnDef<ProductionRow>[] = [
     accessorKey: 'date',
     sortable: true,
   },
-  { id: 'site', header: 'Site', kind: 'text', accessorKey: 'site', sortable: true },
-  { id: 'target', header: 'Target', kind: 'number', accessorKey: 'target', sortable: true },
-  { id: 'realization', header: 'Realisasi', kind: 'number', accessorKey: 'realization', sortable: true },
+  {
+    id: 'target',
+    header: 'Target',
+    kind: 'number',
+    accessorKey: 'target',
+    unitSuffix: TREND_VIEW_UNIT_SUFFIX.production,
+    sortable: true,
+  },
+  {
+    id: 'realization',
+    header: 'Realisasi',
+    kind: 'number',
+    accessorKey: 'realization',
+    unitSuffix: TREND_VIEW_UNIT_SUFFIX.production,
+    sortable: true,
+  },
   {
     id: 'efficiency',
     header: 'Efisiensi',
@@ -107,8 +124,8 @@ export default function ProductionPage() {
   const [deleteTarget, setDeleteTarget] = useState<ProductionRow | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | undefined>();
-  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | undefined>();
+  const { showSkeleton, startLoad, finishLoad, resetForNoSite } = useSiteTableLoading(selectedSite?.id);
 
   useEffect(() => {
     let cancelled = false;
@@ -116,12 +133,12 @@ export default function ProductionPage() {
     async function loadProduction() {
       if (!selectedSite?.id) {
         setRows([]);
-        setIsLoading(false);
+        resetForNoSite();
         setError(undefined);
         return;
       }
 
-      setIsLoading(true);
+      startLoad();
       setError(undefined);
       try {
         const production = await listProductionBySite(selectedSite.id);
@@ -146,7 +163,7 @@ export default function ProductionPage() {
         }
       } finally {
         if (!cancelled) {
-          setIsLoading(false);
+          finishLoad(selectedSite.id);
         }
       }
     }
@@ -156,7 +173,7 @@ export default function ProductionPage() {
     return () => {
       cancelled = true;
     };
-  }, [selectedSite?.id, selectedSite?.name]);
+  }, [selectedSite?.id, selectedSite?.name, finishLoad, resetForNoSite, startLoad]);
 
   const filteredRows = useMemo(() => {
     const keyword = search.trim().toLowerCase();
@@ -207,7 +224,7 @@ export default function ProductionPage() {
             size="sm"
             leftIcon={<PlusIcon />}
             onClick={() => navigate('/production/add')}
-            disabled={!hasSelectedSite || isLoading}
+            disabled={!hasSelectedSite || showSkeleton}
           >
             Tambah Produksi
           </Button>
@@ -228,7 +245,7 @@ export default function ProductionPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             filterLabel="Filters"
-            disabled={!hasSelectedSite || isLoading}
+            disabled={!hasSelectedSite || showSkeleton}
           />
         </div>
 
@@ -239,13 +256,8 @@ export default function ProductionPage() {
           >
             {error}
           </div>
-        ) : isLoading ? (
-          <div
-            className="rounded-lg border bg-white p-6 text-sm shadow-sm"
-            style={{ borderColor: COLORS.border, color: COLORS.textSecondary }}
-          >
-            Memuat data produksi...
-          </div>
+        ) : showSkeleton ? (
+          <DataTableSkeleton loadingLabel="Memuat data produksi…" />
         ) : (
           <DataTable
             columns={TABLE_COLUMNS}

@@ -5,9 +5,11 @@ import {
   Button,
   ConfirmationModalComponent,
   DataTable,
+  DataTableSkeleton,
   type DataTableColumnDef,
   SearchFilterBar,
 } from '../components/ui';
+import { useTableLoading } from '../lib/use-table-loading';
 import { COLORS } from '../constants/colors';
 import {
   deleteRegulation,
@@ -104,8 +106,9 @@ export default function RulePage() {
   const [search, setSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [rows, setRows] = useState<RuleRow[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | undefined>();
+  const regulationLoadKey = selectedSite?.id ?? 'all';
+  const { showSkeleton, startLoad, finishLoad } = useTableLoading(regulationLoadKey);
   const [deleteTarget, setDeleteTarget] = useState<RuleRow | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | undefined>();
@@ -116,7 +119,7 @@ export default function RulePage() {
     let cancelled = false;
 
     async function loadRegulations() {
-      setIsLoading(true);
+      startLoad();
       setError(undefined);
 
       try {
@@ -140,7 +143,7 @@ export default function RulePage() {
         }
       } finally {
         if (!cancelled) {
-          setIsLoading(false);
+          finishLoad(regulationLoadKey);
         }
       }
     }
@@ -150,7 +153,7 @@ export default function RulePage() {
     return () => {
       cancelled = true;
     };
-  }, [hasSelectedSite, selectedSite?.id]);
+  }, [finishLoad, hasSelectedSite, regulationLoadKey, selectedSite?.id, startLoad]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -276,7 +279,7 @@ export default function RulePage() {
             size="sm"
             leftIcon={<PlusIcon />}
             onClick={() => navigate('/rules/upload')}
-            disabled={!hasSelectedSite || isLoading}
+            disabled={!hasSelectedSite || showSkeleton}
           >
             Tambah Data
           </Button>
@@ -296,7 +299,7 @@ export default function RulePage() {
             placeholder="Cari judul, deskripsi, atau pengunggah"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            disabled={isLoading}
+            disabled={showSkeleton}
           />
         </div>
 
@@ -307,13 +310,12 @@ export default function RulePage() {
           >
             {error}
           </div>
-        ) : isLoading ? (
-          <div
-            className="rounded-lg border bg-white p-6 text-sm shadow-sm"
-            style={{ borderColor: COLORS.border, color: COLORS.textSecondary }}
-          >
-            Memuat data peraturan...
-          </div>
+        ) : showSkeleton ? (
+          <DataTableSkeleton
+            variant="document"
+            loadingLabel="Memuat data peraturan…"
+            showPaginationFooter
+          />
         ) : (
           <DataTable
             columns={RULE_TABLE_COLUMNS}

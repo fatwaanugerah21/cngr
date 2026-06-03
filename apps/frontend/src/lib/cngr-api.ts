@@ -433,6 +433,7 @@ function normalizeSite(raw: unknown): SiteRecord | undefined {
     name: name !== '' ? name : `Site ${id}`,
     picName: picName !== '' ? picName : '-',
     picAvatar: picAvatar !== '' ? picAvatar : undefined,
+    city: firstString(record.city) || '',
     province: firstString(record.province, record.province_name) || '-',
     location: normalizeLocation(record),
     status: normalizeStatus(record.status),
@@ -991,6 +992,13 @@ export async function updateUser(userId: string, payload: UpdateUserPayload): Pr
 export async function createSite(payload: CreateSitePayload): Promise<void> {
   await apiV1Json<unknown>('site/', {
     method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updateSite(siteId: string, payload: CreateSitePayload): Promise<void> {
+  await apiV1Json<unknown>(`site/${encodeURIComponent(siteId)}`, {
+    method: 'PUT',
     body: JSON.stringify(payload),
   });
 }

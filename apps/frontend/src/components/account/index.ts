@@ -1,3 +1,5 @@
+export { default as AccountProfileSkeleton } from './AccountProfileSkeleton';
+export type { AccountProfileSkeletonProps } from './AccountProfileSkeleton';
 export { default as AccountAvatarEditor } from './AccountAvatarEditor';
 export type { AccountAvatarEditorProps } from './AccountAvatarEditor';
 export { default as AccountSectionCard } from './AccountSectionCard';
