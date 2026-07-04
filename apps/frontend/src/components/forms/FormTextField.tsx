@@ -98,6 +98,8 @@ const FormTextField = forwardRef<HTMLInputElement, FormTextFieldProps>(
               type={inputType}
               className={`${inputClassName} ${inputPaddingClassName}`.trim()}
               style={fieldInputBaseStyle(blurBorderColor)}
+              value={value}
+              onChange={onChange}
               {...focusHandlers}
               {...props}
             />
